@@ -28,6 +28,7 @@ import {
   ChevronDown,
   Hash,
   Building2,
+  UserPlus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -214,7 +215,7 @@ const EMPTY_OPERATION: Omit<Operation, 'id'> = {
 // Main App
 // ────────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'admin' | 'operations';
+type Tab = 'dashboard' | 'admin' | 'addOperations' | 'addSubscriber';
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -228,7 +229,7 @@ export default function Index() {
       <aside className="w-64 bg-white border-l border-gray-200 hidden lg:flex flex-col sticky top-0 h-screen">
         <div className="p-6">
           <div className="flex items-center gap-3 text-primary">
-            <div className="bg-primary text-white p-2 rounded-xl">
+            <div className="bg-primary text-primary-foreground p-2 rounded-xl">
               <LayoutDashboard size={24} />
             </div>
             <span className="font-bold text-xl tracking-tight">نظام الادارة</span>
@@ -236,11 +237,12 @@ export default function Index() {
         </div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4">
-          <NavItem icon={<LayoutDashboard size={20} />} label="لوحة التحكم"   active={activeTab === 'dashboard'}  onClick={() => setActiveTab('dashboard')} />
-          <NavItem icon={<Shield size={20} />}          label="لوحة الادمن"   active={activeTab === 'admin'}       onClick={() => setActiveTab('admin')} />
-          <NavItem icon={<ClipboardList size={20} />}   label="سجل العمليات"  active={activeTab === 'operations'} onClick={() => setActiveTab('operations')} />
+          <NavItem icon={<LayoutDashboard size={20} />} label="لوحة التحكم"    active={activeTab === 'dashboard'}     onClick={() => setActiveTab('dashboard')} />
+          <NavItem icon={<Shield size={20} />}          label="لوحة الادمن"    active={activeTab === 'admin'}          onClick={() => setActiveTab('admin')} />
+          <NavItem icon={<ClipboardList size={20} />}   label="اضافة عمليات"   active={activeTab === 'addOperations'} onClick={() => setActiveTab('addOperations')} />
+          <NavItem icon={<UserPlus size={20} />}        label="اضافة مشترك"    active={activeTab === 'addSubscriber'} onClick={() => setActiveTab('addSubscriber')} />
           <Separator className="my-4" />
-          <NavItem icon={<Settings size={20} />}        label="الاعدادات"     active={false}                      onClick={() => {}} />
+          <NavItem icon={<Settings size={20} />}        label="الاعدادات"      active={false}                         onClick={() => {}} />
         </nav>
 
         <div className="p-4 border-t border-gray-100">
@@ -256,7 +258,7 @@ export default function Index() {
         {/* Header */}
         <header className="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-10">
           <div className="flex items-center gap-4 lg:hidden">
-            <div className="bg-primary text-white p-2 rounded-lg">
+            <div className="bg-primary text-primary-foreground p-2 rounded-lg">
               <LayoutDashboard size={20} />
             </div>
             <span className="font-bold text-lg">نظام الادارة</span>
@@ -268,10 +270,11 @@ export default function Index() {
           </div>
 
           {/* Mobile tab switcher */}
-          <div className="flex lg:hidden gap-2">
-            <button onClick={() => setActiveTab('dashboard')}  className={`p-2 rounded-lg text-sm font-medium ${activeTab === 'dashboard'  ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}><LayoutDashboard size={16} /></button>
-            <button onClick={() => setActiveTab('admin')}      className={`p-2 rounded-lg text-sm font-medium ${activeTab === 'admin'       ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}><Shield size={16} /></button>
-            <button onClick={() => setActiveTab('operations')} className={`p-2 rounded-lg text-sm font-medium ${activeTab === 'operations'  ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}><ClipboardList size={16} /></button>
+          <div className="flex lg:hidden gap-1.5 flex-wrap">
+            <button onClick={() => setActiveTab('dashboard')}     className={`p-2 rounded-lg text-sm font-medium ${activeTab === 'dashboard'     ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'}`}><LayoutDashboard size={16} /></button>
+            <button onClick={() => setActiveTab('admin')}         className={`p-2 rounded-lg text-sm font-medium ${activeTab === 'admin'         ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'}`}><Shield size={16} /></button>
+            <button onClick={() => setActiveTab('addOperations')} className={`p-2 rounded-lg text-sm font-medium ${activeTab === 'addOperations' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'}`}><ClipboardList size={16} /></button>
+            <button onClick={() => setActiveTab('addSubscriber')} className={`p-2 rounded-lg text-sm font-medium ${activeTab === 'addSubscriber' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'}`}><UserPlus size={16} /></button>
           </div>
 
           <div className="hidden lg:flex items-center gap-4">
@@ -302,13 +305,19 @@ export default function Index() {
           {activeTab === 'admin' && (
             <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-              <AdminPanel subscribers={subscribers} onSubscribersChange={setSubscribers} />
+              <AdminPanel subscribers={subscribers} operations={operations} onOperationsChange={setOperations} />
             </motion.div>
           )}
-          {activeTab === 'operations' && (
-            <motion.div key="operations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          {activeTab === 'addOperations' && (
+            <motion.div key="addOperations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-              <OperationsLog operations={operations} onOperationsChange={setOperations} />
+              <AddOperationsTab operations={operations} onOperationsChange={setOperations} />
+            </motion.div>
+          )}
+          {activeTab === 'addSubscriber' && (
+            <motion.div key="addSubscriber" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+              <AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -324,26 +333,11 @@ export default function Index() {
 function DashboardTab({ stats, onStatsChange }: { stats: Stats; onStatsChange: (s: Stats) => void }) {
   const [editingStats, setEditingStats] = useState(false);
   const [draft, setDraft]               = useState<Stats>(stats);
-  const [searchIban, setSearchIban]     = useState('');
-  const [searchResult, setSearchResult] = useState<null | 'found' | 'not_found'>(null);
-  const [isSearching, setIsSearching]   = useState(false);
-
-  const DEMO = { name: 'عفاف مبارك الاحمري', phone: '0598920244', iban: 'SA1380000295608016001301', subscriptionAmount: 1750, profits: 45000, systemFees: 750 };
-
-  const handleSearch = () => {
-    if (!searchIban.trim()) return;
-    setIsSearching(true);
-    setTimeout(() => {
-      setSearchResult(searchIban.trim() === DEMO.iban ? 'found' : 'not_found');
-      setIsSearching(false);
-    }, 800);
-  };
 
   const saveStats = () => { onStatsChange(draft); setEditingStats(false); };
 
   return (
     <>
-      {/* Stats header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-800">الاحصائيات</h2>
         <Button variant="outline" size="sm" className="gap-2"
@@ -352,7 +346,6 @@ function DashboardTab({ stats, onStatsChange }: { stats: Stats; onStatsChange: (
         </Button>
       </div>
 
-      {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="اجمالي المشتركين"   value={stats.totalSubscribers}    icon={<Users        className="text-blue-600" />}   bgColor="bg-blue-50" />
         <StatCard title="اجمالي الارباح"     value={stats.totalProfits}        icon={<TrendingUp   className="text-green-600" />}  bgColor="bg-green-50" />
@@ -360,7 +353,6 @@ function DashboardTab({ stats, onStatsChange }: { stats: Stats; onStatsChange: (
         <StatCard title="طلبات معلقة"        value={stats.pendingRequests}     icon={<AlertCircle  className="text-orange-600" />} bgColor="bg-orange-50" />
       </div>
 
-      {/* Edit Stats Modal */}
       <AnimatePresence>
         {editingStats && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -386,242 +378,266 @@ function DashboardTab({ stats, onStatsChange }: { stats: Stats; onStatsChange: (
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Chart */}
-        <Card className="lg:col-span-2 border-none shadow-sm">
-          <CardHeader>
-            <CardTitle>نمو الارباح</CardTitle>
-            <CardDescription>تحليل الارباح الشهرية للنظام</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#141414" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#141414" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                <Area type="monotone" dataKey="value" stroke="#141414" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* IBAN search */}
-        <Card className="border-none shadow-sm bg-primary text-white overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
-          <CardHeader>
-            <CardTitle className="text-white">الاستعلام عن الارباح</CardTitle>
-            <CardDescription className="text-gray-300">ادخل رقم الآيبان للاستعلام</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 relative z-10">
-            <div className="relative">
-              <Input
-                placeholder="ادخل رقم الآيبان هنا..."
-                className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 h-12 pr-10"
-                value={searchIban}
-                onChange={e => setSearchIban(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              />
-              <Search className="absolute right-3 top-3.5 text-gray-400" size={18} />
-            </div>
-            <Button className="w-full bg-white text-primary hover:bg-gray-100 h-12 font-bold" onClick={handleSearch} disabled={isSearching}>
-              {isSearching ? 'جاري البحث...' : 'استعلام الآن'}
-            </Button>
-
-            <AnimatePresence>
-              {searchResult === 'found' && (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  className="bg-white/10 rounded-xl p-4 space-y-2 text-sm">
-                  <p className="font-bold text-white">{DEMO.name}</p>
-                  <p className="text-gray-300">{DEMO.phone}</p>
-                  <p className="text-gray-400 text-xs break-all">{DEMO.iban}</p>
-                  <div className="flex justify-between border-t border-white/10 pt-2 mt-2">
-                    <span className="text-gray-300">الارباح</span>
-                    <span className="text-green-300 font-bold">{DEMO.profits.toLocaleString()} ر.س</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-300">رسوم النظام</span>
-                    <span className="text-orange-300 font-bold">{DEMO.systemFees} ر.س</span>
-                  </div>
-                </motion.div>
-              )}
-              {searchResult === 'not_found' && (
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-gray-300 text-sm">
-                  لم يعثر على مشترك بهذا الآيبان.
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border-none shadow-sm">
+        <CardHeader>
+          <CardTitle>نمو الارباح</CardTitle>
+          <CardDescription>تحليل الارباح الشهرية للنظام</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#141414" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="#141414" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+              <Area type="monotone" dataKey="value" stroke="#141414" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </>
   );
 }
 
 // ────────────────────────────────────────────────────────────
-// Admin Panel Tab
+// Admin Panel Tab — Search subscriber + show details + operations
 // ────────────────────────────────────────────────────────────
 
-function AdminPanel({ subscribers, onSubscribersChange }: {
+function AdminPanel({ subscribers, operations, onOperationsChange }: {
   subscribers: Subscriber[];
-  onSubscribersChange: (s: Subscriber[]) => void;
+  operations: Operation[];
+  onOperationsChange: (o: Operation[]) => void;
 }) {
-  const [search, setSearch]     = useState({ name: '', phone: '', iban: '', systemAccount: '', walletAddress: '' });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [foundSubscriber, setFoundSubscriber] = useState<Subscriber | null>(null);
   const [searched, setSearched] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editId, setEditId]     = useState<string | null>(null);
-  const [form, setForm]         = useState<Omit<Subscriber, 'id'>>(EMPTY_SUBSCRIBER);
 
-  const hasSearchInput = (Object.values(search) as string[]).some(v => v.trim() !== '');
-
-  const filteredSubscribers = useMemo((): Subscriber[] => {
-    if (!searched || !hasSearchInput) return [];
-    const q = search;
-    return subscribers.filter((s: Subscriber) =>
-      (!q.name          || s.name.includes(q.name.trim())) &&
-      (!q.phone         || s.phone.includes(q.phone.trim())) &&
-      (!q.iban          || s.iban.includes(q.iban.trim())) &&
-      (!q.systemAccount || s.systemAccount.includes(q.systemAccount.trim())) &&
-      (!q.walletAddress || s.walletAddress.includes(q.walletAddress.trim()))
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return;
+    const q = searchQuery.trim().toLowerCase();
+    const found = subscribers.find(s =>
+      s.name.toLowerCase().includes(q) ||
+      s.iban.toLowerCase().includes(q) ||
+      s.walletAddress.toLowerCase().includes(q) ||
+      s.systemAccount.toLowerCase().includes(q) ||
+      s.phone.includes(q)
     );
-  }, [searched, search, subscribers]);
-
-  const openAdd = () => { setEditId(null); setForm(EMPTY_SUBSCRIBER); setModalOpen(true); };
-
-  const openEdit = (sub: Subscriber) => {
-    setEditId(sub.id);
-    const { id: _id, ...rest } = sub;
-    setForm(rest);
-    setModalOpen(true);
+    setFoundSubscriber(found || null);
+    setSearched(true);
   };
 
-  const handleSave = () => {
-    if (editId) {
-      onSubscribersChange(subscribers.map(s => s.id === editId ? { id: editId, ...form } : s));
-    } else {
-      onSubscribersChange([...subscribers, { id: uid(), ...form }]);
-    }
-    setModalOpen(false);
+  const subscriberOps = useMemo(() => {
+    if (!foundSubscriber) return [];
+    return operations.filter(op => op.subscriberName === foundSubscriber.name);
+  }, [foundSubscriber, operations]);
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setFoundSubscriber(null);
+    setSearched(false);
   };
-
-  const handleDelete = (id: string) => onSubscribersChange(subscribers.filter(s => s.id !== id));
-
-  const clearSearch = () => { setSearch({ name: '', phone: '', iban: '', systemAccount: '', walletAddress: '' }); setSearched(false); };
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-gray-800">لوحة الادمن</h2>
-          <p className="text-sm text-gray-500">ادارة بيانات المشتركين</p>
-        </div>
-        <Button onClick={openAdd} className="gap-2"><Plus size={16} /> اضافة مشترك</Button>
+      <div>
+        <h2 className="text-xl font-bold text-gray-800">لوحة الادمن</h2>
+        <p className="text-sm text-gray-500">البحث عن مشترك وعرض بياناته وعملياته</p>
       </div>
 
-      {/* Search Card */}
-      <Card className="border-none shadow-sm">
+      {/* Search */}
+      <Card className="border-none shadow-sm bg-primary text-primary-foreground overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Search size={18} /> البحث عن مشترك</CardTitle>
-          <CardDescription>ادخل اي حقل واحد او اكثر للبحث — جميع الحقول اختيارية</CardDescription>
+          <CardTitle className="text-primary-foreground">الاستعلام عن الارباح</CardTitle>
+          <CardDescription className="text-gray-300">أدخل رقم الآيبان (IBAN) للمشترك لعرض تفاصيل أرباحه</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-            <LabeledInput label="اسم المشترك (اختياري)"       icon={<User size={14} />}       value={search.name}          onChange={v => setSearch(s => ({ ...s, name: v }))} />
-            <LabeledInput label="رقم الهاتف (اختياري)"        icon={<Phone size={14} />}      value={search.phone}         onChange={v => setSearch(s => ({ ...s, phone: v }))} />
-            <LabeledInput label="رقم الآيبان IBAN (اختياري)"  icon={<CreditCard size={14} />} value={search.iban}          onChange={v => setSearch(s => ({ ...s, iban: v }))} />
-            <LabeledInput label="حساب النظام (اختياري)"       icon={<Building2 size={14} />}  value={search.systemAccount} onChange={v => setSearch(s => ({ ...s, systemAccount: v }))} />
-            <LabeledInput label="عنوان المحفظة (اختياري)"     icon={<Hash size={14} />}       value={search.walletAddress} onChange={v => setSearch(s => ({ ...s, walletAddress: v }))} />
+        <CardContent className="space-y-4 relative z-10">
+          <div className="relative">
+            <Input
+              placeholder="ادخل الاسم، الآيبان، عنوان المحفظة، أو رقم الهاتف..."
+              className="bg-white/10 border-white/20 text-primary-foreground placeholder:text-gray-400 h-12 pr-10"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            />
+            <Search className="absolute right-3 top-3.5 text-gray-400" size={18} />
           </div>
           <div className="flex gap-3">
-            <Button onClick={() => setSearched(true)} disabled={!hasSearchInput} className="gap-2">
-              <Search size={14} /> بحث
+            <Button className="flex-1 bg-white text-primary hover:bg-gray-100 h-12 font-bold" onClick={handleSearch}>
+              استعلام الآن
             </Button>
             {searched && (
-              <Button variant="outline" onClick={clearSearch} className="gap-2">
-                <X size={14} /> مسح
+              <Button variant="outline" className="h-12 border-white/30 text-primary-foreground hover:bg-white/10" onClick={clearSearch}>
+                <X size={16} />
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Search Results */}
+      {/* Results */}
       <AnimatePresence>
-        {searched && filteredSubscribers.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
-            <h3 className="font-bold text-gray-700 text-sm">نتائج البحث ({filteredSubscribers.length})</h3>
-            {filteredSubscribers.map(sub => (
-              <React.Fragment key={sub.id}>
-                <SubscriberCard sub={sub} onEdit={() => openEdit(sub)} onDelete={() => handleDelete(sub.id)} />
-              </React.Fragment>
-            ))}
+        {searched && foundSubscriber && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            {/* Subscriber Profile Card */}
+            <Card className="border-none shadow-sm overflow-hidden">
+              <CardContent className="p-0">
+                {/* Header with name and status */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                      <User size={28} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{foundSubscriber.name}</h3>
+                      <p className="text-sm text-green-600 font-medium">مشترك نشط في النظام</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 px-4 py-1.5 text-sm">نشط</Badge>
+                </div>
+
+                {/* Details */}
+                <div className="p-6 space-y-6">
+                  {/* Phone */}
+                  <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <Phone size={18} />
+                      <span className="text-sm">رقم الجوال</span>
+                    </div>
+                    <span className="text-lg font-bold text-gray-900 tracking-wide">{foundSubscriber.phone || '—'}</span>
+                  </div>
+
+                  {/* IBAN */}
+                  <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <CreditCard size={18} />
+                      <span className="text-sm">رقم الايبان</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900 break-all">{foundSubscriber.iban || '—'}</span>
+                  </div>
+
+                  {/* Subscription Amount */}
+                  {foundSubscriber.subscriptionAmount > 0 && (
+                    <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Wallet size={18} />
+                        <span className="text-sm">مبلغ الاشتراك</span>
+                      </div>
+                      <span className="text-lg font-bold text-gray-900">{foundSubscriber.subscriptionAmount.toLocaleString()} ر.س</span>
+                    </div>
+                  )}
+
+                  {/* Profits */}
+                  {foundSubscriber.profits > 0 && (
+                    <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <TrendingUp size={18} />
+                        <span className="text-sm">إجمالي الأرباح</span>
+                      </div>
+                      <span className="text-lg font-bold text-green-600">{foundSubscriber.profits.toLocaleString()} ر.س</span>
+                    </div>
+                  )}
+
+                  {/* System Fees */}
+                  {foundSubscriber.systemFees > 0 && (
+                    <Card className="bg-orange-50 border-orange-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <AlertCircle size={18} className="text-orange-500" />
+                              <span className="font-bold text-gray-800">رسوم النظام المستحقة</span>
+                            </div>
+                            <p className="text-xs text-gray-500">يستخدم لتنشيط النظام واستلام أرباحك</p>
+                          </div>
+                          <div className="text-left">
+                            <span className="text-2xl font-black text-orange-600">{foundSubscriber.systemFees.toLocaleString()} ر.س</span>
+                            {foundSubscriber.iban && (
+                              <p className="text-xs text-gray-400 mt-1">SAr{foundSubscriber.iban}</p>
+                            )}
+                          </div>
+                        </div>
+                        <Button className="mt-3 bg-green-600 hover:bg-green-700 text-white gap-2">
+                          <CheckCircle2 size={14} /> تنشيط الآن
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* System Account & Wallet */}
+                  {foundSubscriber.systemAccount && (
+                    <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Building2 size={18} />
+                        <span className="text-sm">حساب النظام</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">{foundSubscriber.systemAccount}</span>
+                    </div>
+                  )}
+                  {foundSubscriber.walletAddress && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Hash size={18} />
+                        <span className="text-sm">عنوان المحفظة</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 break-all">{foundSubscriber.walletAddress}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Subscriber Operations */}
+            <Card className="border-none shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base">آخر العمليات</CardTitle>
+                <CardDescription>قائمة بأحدث عمليات الاشتراك وتوزيع الأرباح</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="text-right font-bold">المشترك</TableHead>
+                        <TableHead className="text-right font-bold">العملية</TableHead>
+                        <TableHead className="text-right font-bold">المبلغ</TableHead>
+                        <TableHead className="text-right font-bold">التاريخ</TableHead>
+                        <TableHead className="text-right font-bold">الحالة</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {subscriberOps.length > 0 ? subscriberOps.map(op => (
+                        <TableRow key={op.id} className="hover:bg-gray-50/50">
+                          <TableCell className="font-medium">{op.subscriberName}</TableCell>
+                          <TableCell>{op.operation}</TableCell>
+                          <TableCell className={`font-bold ${amountColor(op.status)}`}>{op.amount}</TableCell>
+                          <TableCell className="text-gray-500 text-sm">{op.date}</TableCell>
+                          <TableCell>{statusBadge(op.status)}</TableCell>
+                        </TableRow>
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-gray-400 py-8">لا توجد عمليات لهذا المشترك.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
         )}
-        {searched && filteredSubscribers.length === 0 && (
+        {searched && !foundSubscriber && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="p-12 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
             <Search size={32} className="mx-auto mb-4 text-gray-300" />
-            <h3 className="font-bold text-gray-700">لا توجد نتائج</h3>
+            <h3 className="font-bold text-gray-700">لم يعثر على مشترك</h3>
             <p className="text-sm text-gray-500 mt-1">لم يعثر على مشترك يطابق معايير البحث.</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* All subscribers list when not searching */}
-      {!searched && (
-        <Card className="border-none shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">جميع المشتركين ({subscribers.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {subscribers.map(sub => (
-                <React.Fragment key={sub.id}>
-                  <SubscriberCard sub={sub} onEdit={() => openEdit(sub)} onDelete={() => handleDelete(sub.id)} defaultExpanded />
-                </React.Fragment>
-              ))}
-              {subscribers.length === 0 && (
-                <p className="text-center text-gray-400 py-8">لا يوجد مشتركون بعد. اضف مشتركا جديدا.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Add / Edit Modal */}
-      <AnimatePresence>
-        {modalOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 space-y-4 my-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold">{editId ? 'تعديل مشترك' : 'اضافة مشترك جديد'}</h3>
-                <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <LabeledInput label="اسم المشترك (اختياري)"       value={form.name}                       onChange={v => setForm(f => ({ ...f, name: v }))} />
-                <LabeledInput label="رقم الهاتف (اختياري)"        value={form.phone}                      onChange={v => setForm(f => ({ ...f, phone: v }))} />
-                <LabeledInput label="رقم الآيبان IBAN (اختياري)"  value={form.iban}                       onChange={v => setForm(f => ({ ...f, iban: v }))} />
-                <LabeledInput label="مبلغ الاشتراك"               type="number" value={String(form.subscriptionAmount)} onChange={v => setForm(f => ({ ...f, subscriptionAmount: Number(v) }))} />
-                <LabeledInput label="الارباح"                     type="number" value={String(form.profits)}           onChange={v => setForm(f => ({ ...f, profits: Number(v) }))} />
-                <LabeledInput label="رسوم النظام"                 type="number" value={String(form.systemFees)}        onChange={v => setForm(f => ({ ...f, systemFees: Number(v) }))} />
-                <LabeledInput label="حساب النظام (اختياري)"       value={form.systemAccount}              onChange={v => setForm(f => ({ ...f, systemAccount: v }))} />
-                <LabeledInput label="عنوان المحفظة (اختياري)"     value={form.walletAddress}              onChange={v => setForm(f => ({ ...f, walletAddress: v }))} />
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={() => setModalOpen(false)}>الغاء</Button>
-                <Button onClick={handleSave} className="gap-2">
-                  <Save size={14} /> {editId ? 'حفظ التعديلات' : 'اضافة'}
-                </Button>
-              </div>
-            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -629,61 +645,14 @@ function AdminPanel({ subscribers, onSubscribersChange }: {
   );
 }
 
-// Subscriber card sub-component
-function SubscriberCard({ sub, onEdit, onDelete, defaultExpanded = false }: {
-  sub: Subscriber;
-  onEdit: () => void;
-  onDelete: () => void;
-  defaultExpanded?: boolean;
-}) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-
-  return (
-    <div className="border border-gray-100 rounded-2xl bg-white hover:shadow-sm transition-shadow">
-      <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setExpanded(e => !e)}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-            <User size={18} />
-          </div>
-          <div>
-            <p className="font-bold text-gray-900">{sub.name || '(بدون اسم)'}</p>
-            <p className="text-xs text-gray-500">{sub.phone || '—'}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <ChevronDown size={16} className={`text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-          <button onClick={e => { e.stopPropagation(); onEdit(); }}   className="p-2 rounded-lg hover:bg-blue-50 text-blue-500"><Pencil  size={15} /></button>
-          <button onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 rounded-lg hover:bg-red-50  text-red-400"><Trash2  size={15} /></button>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden">
-            <div className="px-4 pb-4 grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-gray-50 pt-4">
-              {sub.iban               && <InfoItem icon={<CreditCard size={16} />} label="آيبان"          value={sub.iban} />}
-              {sub.subscriptionAmount > 0 && <InfoItem icon={<Wallet size={16} />}     label="مبلغ الاشتراك"  value={`${sub.subscriptionAmount.toLocaleString()} ر.س`} />}
-              {sub.profits > 0           && <InfoItem icon={<TrendingUp size={16} />}  label="الارباح"        value={`${sub.profits.toLocaleString()} ر.س`} valueClassName="text-green-600" />}
-              {sub.systemFees > 0        && <InfoItem icon={<AlertCircle size={16} />} label="رسوم النظام"    value={`${sub.systemFees.toLocaleString()} ر.س`} valueClassName="text-orange-600" />}
-              {sub.systemAccount         && <InfoItem icon={<Building2 size={16} />}   label="حساب النظام"   value={sub.systemAccount} />}
-              {sub.walletAddress         && <InfoItem icon={<Hash size={16} />}        label="عنوان المحفظة" value={sub.walletAddress} />}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 // ────────────────────────────────────────────────────────────
-// Operations Log Tab
+// Add Operations Tab
 // ────────────────────────────────────────────────────────────
 
 const OPERATION_TYPES    = ['توزيع ارباح', 'اشتراك جديد', 'تنشيط النظام', 'سحب ارباح', 'تحويل'];
 const OPERATION_STATUSES = ['مكتمل', 'اشتراك جديد', 'تنشيط النظام', 'قيد المعالجة'];
 
-function OperationsLog({ operations, onOperationsChange }: {
+function AddOperationsTab({ operations, onOperationsChange }: {
   operations: Operation[];
   onOperationsChange: (o: Operation[]) => void;
 }) {
@@ -766,7 +735,6 @@ function OperationsLog({ operations, onOperationsChange }: {
         </CardContent>
       </Card>
 
-      {/* Color legend */}
       <div className="flex gap-6 flex-wrap text-xs text-gray-500 pt-1">
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> مكتمل — المبلغ اخضر</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" /> اشتراك جديد — المبلغ اصفر</span>
@@ -835,6 +803,136 @@ function OperationsLog({ operations, onOperationsChange }: {
 }
 
 // ────────────────────────────────────────────────────────────
+// Add Subscriber Tab
+// ────────────────────────────────────────────────────────────
+
+function AddSubscriberTab({ subscribers, onSubscribersChange }: {
+  subscribers: Subscriber[];
+  onSubscribersChange: (s: Subscriber[]) => void;
+}) {
+  const [form, setForm] = useState<Omit<Subscriber, 'id'>>(EMPTY_SUBSCRIBER);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    onSubscribersChange([...subscribers, { id: uid(), ...form }]);
+    setForm(EMPTY_SUBSCRIBER);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  return (
+    <>
+      <div>
+        <h2 className="text-xl font-bold text-gray-800">اضافة مشترك جديد</h2>
+        <p className="text-sm text-gray-500">ادخل بيانات المشترك الجديد واضغط حفظ</p>
+      </div>
+
+      <Card className="border-none shadow-sm">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <LabeledInput label="اسم المشترك"          icon={<User size={14} />}       value={form.name}                          onChange={v => setForm(f => ({ ...f, name: v }))} />
+            <LabeledInput label="رقم الهاتف"           icon={<Phone size={14} />}      value={form.phone}                         onChange={v => setForm(f => ({ ...f, phone: v }))} />
+            <LabeledInput label="رقم الآيبان IBAN"     icon={<CreditCard size={14} />} value={form.iban}                          onChange={v => setForm(f => ({ ...f, iban: v }))} />
+            <LabeledInput label="مبلغ الاشتراك"        icon={<Wallet size={14} />}     type="number" value={String(form.subscriptionAmount)} onChange={v => setForm(f => ({ ...f, subscriptionAmount: Number(v) }))} />
+            <LabeledInput label="الارباح"               icon={<TrendingUp size={14} />} type="number" value={String(form.profits)}            onChange={v => setForm(f => ({ ...f, profits: Number(v) }))} />
+            <LabeledInput label="رسوم النظام"           icon={<AlertCircle size={14} />} type="number" value={String(form.systemFees)}        onChange={v => setForm(f => ({ ...f, systemFees: Number(v) }))} />
+            <LabeledInput label="حساب النظام"           icon={<Building2 size={14} />} value={form.systemAccount}                 onChange={v => setForm(f => ({ ...f, systemAccount: v }))} />
+            <LabeledInput label="عنوان المحفظة"         icon={<Hash size={14} />}       value={form.walletAddress}                 onChange={v => setForm(f => ({ ...f, walletAddress: v }))} />
+          </div>
+
+          <div className="flex items-center gap-3 mt-6">
+            <Button onClick={handleSave} className="gap-2 px-8">
+              <Save size={14} /> حفظ
+            </Button>
+            <AnimatePresence>
+              {saved && (
+                <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                  className="text-green-600 text-sm font-medium flex items-center gap-1">
+                  <CheckCircle2 size={16} /> تم الحفظ بنجاح
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Existing subscribers list */}
+      <Card className="border-none shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base">جميع المشتركين ({subscribers.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {subscribers.map(sub => (
+              <SubscriberCard key={sub.id} sub={sub}
+                onEdit={() => {
+                  const { id: _id, ...rest } = sub;
+                  setForm(rest);
+                }}
+                onDelete={() => onSubscribersChange(subscribers.filter(s => s.id !== sub.id))}
+              />
+            ))}
+            {subscribers.length === 0 && (
+              <p className="text-center text-gray-400 py-8">لا يوجد مشتركون بعد.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Subscriber card sub-component
+// ────────────────────────────────────────────────────────────
+
+function SubscriberCard({ sub, onEdit, onDelete, defaultExpanded = false }: {
+  sub: Subscriber;
+  onEdit: () => void;
+  onDelete: () => void;
+  defaultExpanded?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  return (
+    <div className="border border-gray-100 rounded-2xl bg-white hover:shadow-sm transition-shadow">
+      <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setExpanded(e => !e)}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <User size={18} />
+          </div>
+          <div>
+            <p className="font-bold text-gray-900">{sub.name || '(بدون اسم)'}</p>
+            <p className="text-xs text-gray-500">{sub.phone || '—'}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <ChevronDown size={16} className={`text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          <button onClick={e => { e.stopPropagation(); onEdit(); }}   className="p-2 rounded-lg hover:bg-blue-50 text-blue-500"><Pencil  size={15} /></button>
+          <button onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 rounded-lg hover:bg-red-50  text-red-400"><Trash2  size={15} /></button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden">
+            <div className="px-4 pb-4 grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-gray-50 pt-4">
+              {sub.iban               && <InfoItem icon={<CreditCard size={16} />} label="آيبان"          value={sub.iban} />}
+              {sub.subscriptionAmount > 0 && <InfoItem icon={<Wallet size={16} />}     label="مبلغ الاشتراك"  value={`${sub.subscriptionAmount.toLocaleString()} ر.س`} />}
+              {sub.profits > 0           && <InfoItem icon={<TrendingUp size={16} />}  label="الارباح"        value={`${sub.profits.toLocaleString()} ر.س`} valueClassName="text-green-600" />}
+              {sub.systemFees > 0        && <InfoItem icon={<AlertCircle size={16} />} label="رسوم النظام"    value={`${sub.systemFees.toLocaleString()} ر.س`} valueClassName="text-orange-600" />}
+              {sub.systemAccount         && <InfoItem icon={<Building2 size={16} />}   label="حساب النظام"   value={sub.systemAccount} />}
+              {sub.walletAddress         && <InfoItem icon={<Hash size={16} />}        label="عنوان المحفظة" value={sub.walletAddress} />}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // Shared small components
 // ────────────────────────────────────────────────────────────
 
@@ -846,7 +944,7 @@ function NavItem({ icon, label, active = false, onClick }: {
 }) {
   return (
     <div onClick={onClick} className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 ${
-      active ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-500 hover:bg-gray-50 hover:text-primary'
+      active ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-gray-500 hover:bg-gray-50 hover:text-primary'
     }`}>
       {icon}
       <span className="font-medium">{label}</span>
