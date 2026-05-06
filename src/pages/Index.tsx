@@ -3,7 +3,7 @@
  * لوحة تحكم إدارية متقدمة | بيانات محلية فقط (localStorage)
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Users, TrendingUp, Wallet, Search, LayoutDashboard, Settings,
   Bell, LogOut, CheckCircle2, AlertCircle, CreditCard, Phone, User,
@@ -11,7 +11,8 @@ import {
   Hash, Building2, UserPlus, ChevronLeft, ChevronRight, Activity,
   ArrowUpRight, ArrowDownRight, Clock, RefreshCw, Download, Filter,
   Eye, EyeOff, AlertTriangle, CheckCheck, Lock, Database, Calendar,
-  FileText, Banknote, Star,
+  FileText, Banknote, Star, PanelLeftClose, PanelLeftOpen, SlidersHorizontal,
+  Globe, Cpu, BarChart3, Edit3, Type, CalendarClock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -52,6 +53,8 @@ interface Subscriber {
   joinDate: string;
   subscriberStatus: string;
   notes: string;
+  currency: string;
+  platform: string;
 }
 
 interface Operation {
@@ -70,6 +73,268 @@ interface Stats {
   pendingRequests: string;
 }
 
+interface SystemConfig {
+  sectionNames: {
+    dashboard: string;
+    admin: string;
+    addOperations: string;
+    addSubscriber: string;
+    systemAdmin: string;
+  };
+  cardOverrides: {
+    totalSubscribers: string;
+    activeCount: string;
+    totalProfits: string;
+    completedOps: string;
+    activeSubscriptions: string;
+    totalSubsCount: string;
+    pendingFees: string;
+    activationOps: string;
+  };
+  institutionalText: string;
+  systemDate: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+// World Currencies
+// ─────────────────────────────────────────────────────────────
+
+interface Currency {
+  code: string;
+  symbol: string;
+  nameAr: string;
+  nameEn: string;
+  countryAr: string;
+  countryEn: string;
+}
+
+const WORLD_CURRENCIES: Currency[] = [
+  // خليج وعرب
+  { code: 'SAR', symbol: '﷼', nameAr: 'ريال سعودي', nameEn: 'Saudi Riyal', countryAr: 'المملكة العربية السعودية', countryEn: 'Saudi Arabia' },
+  { code: 'AED', symbol: 'د.إ', nameAr: 'درهم إماراتي', nameEn: 'UAE Dirham', countryAr: 'الإمارات العربية المتحدة', countryEn: 'UAE' },
+  { code: 'KWD', symbol: 'د.ك', nameAr: 'دينار كويتي', nameEn: 'Kuwaiti Dinar', countryAr: 'الكويت', countryEn: 'Kuwait' },
+  { code: 'QAR', symbol: 'ر.ق', nameAr: 'ريال قطري', nameEn: 'Qatari Riyal', countryAr: 'قطر', countryEn: 'Qatar' },
+  { code: 'BHD', symbol: 'د.ب', nameAr: 'دينار بحريني', nameEn: 'Bahraini Dinar', countryAr: 'البحرين', countryEn: 'Bahrain' },
+  { code: 'OMR', symbol: 'ر.ع', nameAr: 'ريال عُماني', nameEn: 'Omani Rial', countryAr: 'عُمان', countryEn: 'Oman' },
+  { code: 'EGP', symbol: 'ج.م', nameAr: 'جنيه مصري', nameEn: 'Egyptian Pound', countryAr: 'مصر', countryEn: 'Egypt' },
+  { code: 'JOD', symbol: 'د.أ', nameAr: 'دينار أردني', nameEn: 'Jordanian Dinar', countryAr: 'الأردن', countryEn: 'Jordan' },
+  { code: 'LBP', symbol: 'ل.ل', nameAr: 'ليرة لبنانية', nameEn: 'Lebanese Pound', countryAr: 'لبنان', countryEn: 'Lebanon' },
+  { code: 'IQD', symbol: 'ع.د', nameAr: 'دينار عراقي', nameEn: 'Iraqi Dinar', countryAr: 'العراق', countryEn: 'Iraq' },
+  { code: 'DZD', symbol: 'دج', nameAr: 'دينار جزائري', nameEn: 'Algerian Dinar', countryAr: 'الجزائر', countryEn: 'Algeria' },
+  { code: 'MAD', symbol: 'د.م', nameAr: 'درهم مغربي', nameEn: 'Moroccan Dirham', countryAr: 'المغرب', countryEn: 'Morocco' },
+  { code: 'TND', symbol: 'د.ت', nameAr: 'دينار تونسي', nameEn: 'Tunisian Dinar', countryAr: 'تونس', countryEn: 'Tunisia' },
+  { code: 'LYD', symbol: 'ل.د', nameAr: 'دينار ليبي', nameEn: 'Libyan Dinar', countryAr: 'ليبيا', countryEn: 'Libya' },
+  { code: 'SDG', symbol: 'ج.س', nameAr: 'جنيه سوداني', nameEn: 'Sudanese Pound', countryAr: 'السودان', countryEn: 'Sudan' },
+  { code: 'SYP', symbol: 'ل.س', nameAr: 'ليرة سورية', nameEn: 'Syrian Pound', countryAr: 'سوريا', countryEn: 'Syria' },
+  { code: 'YER', symbol: 'ر.ي', nameAr: 'ريال يمني', nameEn: 'Yemeni Rial', countryAr: 'اليمن', countryEn: 'Yemen' },
+  { code: 'MRU', symbol: 'أ.م', nameAr: 'أوقية موريتانية', nameEn: 'Mauritanian Ouguiya', countryAr: 'موريتانيا', countryEn: 'Mauritania' },
+  { code: 'SOS', symbol: 'Sh', nameAr: 'شلن صومالي', nameEn: 'Somali Shilling', countryAr: 'الصومال', countryEn: 'Somalia' },
+  { code: 'DJF', symbol: 'Fdj', nameAr: 'فرنك جيبوتي', nameEn: 'Djiboutian Franc', countryAr: 'جيبوتي', countryEn: 'Djibouti' },
+  { code: 'KMF', symbol: 'CF', nameAr: 'فرنك جزر القمر', nameEn: 'Comorian Franc', countryAr: 'جزر القمر', countryEn: 'Comoros' },
+  // أوروبا
+  { code: 'USD', symbol: '$', nameAr: 'دولار أمريكي', nameEn: 'US Dollar', countryAr: 'الولايات المتحدة', countryEn: 'United States' },
+  { code: 'EUR', symbol: '€', nameAr: 'يورو', nameEn: 'Euro', countryAr: 'منطقة اليورو', countryEn: 'Eurozone' },
+  { code: 'GBP', symbol: '£', nameAr: 'جنيه إسترليني', nameEn: 'British Pound', countryAr: 'المملكة المتحدة', countryEn: 'United Kingdom' },
+  { code: 'CHF', symbol: 'Fr', nameAr: 'فرنك سويسري', nameEn: 'Swiss Franc', countryAr: 'سويسرا', countryEn: 'Switzerland' },
+  { code: 'SEK', symbol: 'kr', nameAr: 'كرون سويدي', nameEn: 'Swedish Krona', countryAr: 'السويد', countryEn: 'Sweden' },
+  { code: 'NOK', symbol: 'kr', nameAr: 'كرون نرويجي', nameEn: 'Norwegian Krone', countryAr: 'النرويج', countryEn: 'Norway' },
+  { code: 'DKK', symbol: 'kr', nameAr: 'كرون دنماركي', nameEn: 'Danish Krone', countryAr: 'الدنمارك', countryEn: 'Denmark' },
+  { code: 'PLN', symbol: 'zł', nameAr: 'زلوتي بولندي', nameEn: 'Polish Złoty', countryAr: 'بولندا', countryEn: 'Poland' },
+  { code: 'CZK', symbol: 'Kč', nameAr: 'كورونا تشيكية', nameEn: 'Czech Koruna', countryAr: 'التشيك', countryEn: 'Czech Republic' },
+  { code: 'HUF', symbol: 'Ft', nameAr: 'فورنت مجري', nameEn: 'Hungarian Forint', countryAr: 'المجر', countryEn: 'Hungary' },
+  { code: 'RON', symbol: 'lei', nameAr: 'ليو روماني', nameEn: 'Romanian Leu', countryAr: 'رومانيا', countryEn: 'Romania' },
+  { code: 'BGN', symbol: 'лв', nameAr: 'ليف بلغاري', nameEn: 'Bulgarian Lev', countryAr: 'بلغاريا', countryEn: 'Bulgaria' },
+  { code: 'HRK', symbol: 'kn', nameAr: 'كونا كرواتية', nameEn: 'Croatian Kuna', countryAr: 'كرواتيا', countryEn: 'Croatia' },
+  { code: 'RUB', symbol: '₽', nameAr: 'روبل روسي', nameEn: 'Russian Ruble', countryAr: 'روسيا', countryEn: 'Russia' },
+  { code: 'UAH', symbol: '₴', nameAr: 'هريفنيا أوكرانية', nameEn: 'Ukrainian Hryvnia', countryAr: 'أوكرانيا', countryEn: 'Ukraine' },
+  { code: 'TRY', symbol: '₺', nameAr: 'ليرة تركية', nameEn: 'Turkish Lira', countryAr: 'تركيا', countryEn: 'Turkey' },
+  { code: 'ISK', symbol: 'kr', nameAr: 'كرون أيسلندي', nameEn: 'Icelandic Krona', countryAr: 'أيسلندا', countryEn: 'Iceland' },
+  { code: 'HKD', symbol: 'HK$', nameAr: 'دولار هونغ كونغ', nameEn: 'Hong Kong Dollar', countryAr: 'هونغ كونغ', countryEn: 'Hong Kong' },
+  { code: 'MKD', symbol: 'ден', nameAr: 'دينار مقدوني', nameEn: 'Macedonian Denar', countryAr: 'مقدونيا الشمالية', countryEn: 'North Macedonia' },
+  { code: 'RSD', symbol: 'дин', nameAr: 'دينار صربي', nameEn: 'Serbian Dinar', countryAr: 'صربيا', countryEn: 'Serbia' },
+  { code: 'ALL', symbol: 'L', nameAr: 'ليك ألباني', nameEn: 'Albanian Lek', countryAr: 'ألبانيا', countryEn: 'Albania' },
+  { code: 'BAM', symbol: 'KM', nameAr: 'مارك بوسني', nameEn: 'Bosnian Mark', countryAr: 'البوسنة والهرسك', countryEn: 'Bosnia' },
+  { code: 'MDL', symbol: 'L', nameAr: 'لي مولدوفي', nameEn: 'Moldovan Leu', countryAr: 'مولدوفا', countryEn: 'Moldova' },
+  { code: 'GEL', symbol: '₾', nameAr: 'لاري جورجي', nameEn: 'Georgian Lari', countryAr: 'جورجيا', countryEn: 'Georgia' },
+  { code: 'AMD', symbol: '֏', nameAr: 'درام أرميني', nameEn: 'Armenian Dram', countryAr: 'أرمينيا', countryEn: 'Armenia' },
+  { code: 'AZN', symbol: '₼', nameAr: 'مانات أذربيجاني', nameEn: 'Azerbaijani Manat', countryAr: 'أذربيجان', countryEn: 'Azerbaijan' },
+  { code: 'BYN', symbol: 'Br', nameAr: 'روبل بيلاروسي', nameEn: 'Belarusian Ruble', countryAr: 'بيلاروسيا', countryEn: 'Belarus' },
+  // آسيا
+  { code: 'JPY', symbol: '¥', nameAr: 'ين ياباني', nameEn: 'Japanese Yen', countryAr: 'اليابان', countryEn: 'Japan' },
+  { code: 'CNY', symbol: '¥', nameAr: 'يوان صيني', nameEn: 'Chinese Yuan', countryAr: 'الصين', countryEn: 'China' },
+  { code: 'INR', symbol: '₹', nameAr: 'روبية هندية', nameEn: 'Indian Rupee', countryAr: 'الهند', countryEn: 'India' },
+  { code: 'KRW', symbol: '₩', nameAr: 'ووون كوري', nameEn: 'South Korean Won', countryAr: 'كوريا الجنوبية', countryEn: 'South Korea' },
+  { code: 'SGD', symbol: 'S$', nameAr: 'دولار سنغافوري', nameEn: 'Singapore Dollar', countryAr: 'سنغافورة', countryEn: 'Singapore' },
+  { code: 'MYR', symbol: 'RM', nameAr: 'رينغيت ماليزي', nameEn: 'Malaysian Ringgit', countryAr: 'ماليزيا', countryEn: 'Malaysia' },
+  { code: 'THB', symbol: '฿', nameAr: 'بات تايلاندي', nameEn: 'Thai Baht', countryAr: 'تايلاند', countryEn: 'Thailand' },
+  { code: 'IDR', symbol: 'Rp', nameAr: 'روبية إندونيسية', nameEn: 'Indonesian Rupiah', countryAr: 'إندونيسيا', countryEn: 'Indonesia' },
+  { code: 'PHP', symbol: '₱', nameAr: 'بيزو فلبيني', nameEn: 'Philippine Peso', countryAr: 'الفلبين', countryEn: 'Philippines' },
+  { code: 'VND', symbol: '₫', nameAr: 'دونغ فيتنامي', nameEn: 'Vietnamese Dong', countryAr: 'فيتنام', countryEn: 'Vietnam' },
+  { code: 'PKR', symbol: '₨', nameAr: 'روبية باكستانية', nameEn: 'Pakistani Rupee', countryAr: 'باكستان', countryEn: 'Pakistan' },
+  { code: 'BDT', symbol: '৳', nameAr: 'تاكا بنغلاديشية', nameEn: 'Bangladeshi Taka', countryAr: 'بنغلاديش', countryEn: 'Bangladesh' },
+  { code: 'LKR', symbol: '₨', nameAr: 'روبية سريلانكية', nameEn: 'Sri Lankan Rupee', countryAr: 'سريلانكا', countryEn: 'Sri Lanka' },
+  { code: 'NPR', symbol: '₨', nameAr: 'روبية نيبالية', nameEn: 'Nepalese Rupee', countryAr: 'نيبال', countryEn: 'Nepal' },
+  { code: 'MMK', symbol: 'K', nameAr: 'كيات ميانماري', nameEn: 'Myanmar Kyat', countryAr: 'ميانمار', countryEn: 'Myanmar' },
+  { code: 'KHR', symbol: '៛', nameAr: 'ريال كمبودي', nameEn: 'Cambodian Riel', countryAr: 'كمبوديا', countryEn: 'Cambodia' },
+  { code: 'LAK', symbol: '₭', nameAr: 'كيب لاوسي', nameEn: 'Lao Kip', countryAr: 'لاوس', countryEn: 'Laos' },
+  { code: 'MNT', symbol: '₮', nameAr: 'توغروغ منغولي', nameEn: 'Mongolian Tögrög', countryAr: 'منغوليا', countryEn: 'Mongolia' },
+  { code: 'TWD', symbol: 'NT$', nameAr: 'دولار تايواني', nameEn: 'Taiwan Dollar', countryAr: 'تايوان', countryEn: 'Taiwan' },
+  { code: 'MOP', symbol: 'P', nameAr: 'باتاكا ماكاو', nameEn: 'Macanese Pataca', countryAr: 'ماكاو', countryEn: 'Macao' },
+  { code: 'BTN', symbol: 'Nu', nameAr: 'نغولتروم بوتاني', nameEn: 'Bhutanese Ngultrum', countryAr: 'بوتان', countryEn: 'Bhutan' },
+  { code: 'MVR', symbol: 'Rf', nameAr: 'روفيا مالديفية', nameEn: 'Maldivian Rufiyaa', countryAr: 'المالديف', countryEn: 'Maldives' },
+  { code: 'KZT', symbol: '₸', nameAr: 'تنغي كازاخستاني', nameEn: 'Kazakhstani Tenge', countryAr: 'كازاخستان', countryEn: 'Kazakhstan' },
+  { code: 'UZS', symbol: 'лв', nameAr: 'سوم أوزبكستاني', nameEn: 'Uzbekistani Som', countryAr: 'أوزبكستان', countryEn: 'Uzbekistan' },
+  { code: 'KGS', symbol: 'лв', nameAr: 'سوم قيرغيزستاني', nameEn: 'Kyrgyzstani Som', countryAr: 'قيرغيزستان', countryEn: 'Kyrgyzstan' },
+  { code: 'TJS', symbol: 'SM', nameAr: 'سوموني طاجيكستاني', nameEn: 'Tajikistani Somoni', countryAr: 'طاجيكستان', countryEn: 'Tajikistan' },
+  { code: 'TMT', symbol: 'T', nameAr: 'مانات تركمانستاني', nameEn: 'Turkmenistani Manat', countryAr: 'تركمانستان', countryEn: 'Turkmenistan' },
+  { code: 'AFN', symbol: '؋', nameAr: 'أفغاني', nameEn: 'Afghan Afghani', countryAr: 'أفغانستان', countryEn: 'Afghanistan' },
+  { code: 'IRR', symbol: '﷼', nameAr: 'ريال إيراني', nameEn: 'Iranian Rial', countryAr: 'إيران', countryEn: 'Iran' },
+  { code: 'ILS', symbol: '₪', nameAr: 'شيكل إسرائيلي', nameEn: 'Israeli Shekel', countryAr: 'إسرائيل', countryEn: 'Israel' },
+  // أمريكا
+  { code: 'CAD', symbol: 'CA$', nameAr: 'دولار كندي', nameEn: 'Canadian Dollar', countryAr: 'كندا', countryEn: 'Canada' },
+  { code: 'MXN', symbol: 'MX$', nameAr: 'بيزو مكسيكي', nameEn: 'Mexican Peso', countryAr: 'المكسيك', countryEn: 'Mexico' },
+  { code: 'BRL', symbol: 'R$', nameAr: 'ريال برازيلي', nameEn: 'Brazilian Real', countryAr: 'البرازيل', countryEn: 'Brazil' },
+  { code: 'ARS', symbol: '$', nameAr: 'بيزو أرجنتيني', nameEn: 'Argentine Peso', countryAr: 'الأرجنتين', countryEn: 'Argentina' },
+  { code: 'CLP', symbol: '$', nameAr: 'بيزو تشيلي', nameEn: 'Chilean Peso', countryAr: 'تشيلي', countryEn: 'Chile' },
+  { code: 'COP', symbol: '$', nameAr: 'بيزو كولومبي', nameEn: 'Colombian Peso', countryAr: 'كولومبيا', countryEn: 'Colombia' },
+  { code: 'PEN', symbol: 'S/', nameAr: 'سول بيروفي', nameEn: 'Peruvian Sol', countryAr: 'بيرو', countryEn: 'Peru' },
+  { code: 'UYU', symbol: '$U', nameAr: 'بيزو أوروغوياني', nameEn: 'Uruguayan Peso', countryAr: 'أوروغواي', countryEn: 'Uruguay' },
+  { code: 'BOB', symbol: 'Bs.', nameAr: 'بوليفيانو بوليفي', nameEn: 'Bolivian Boliviano', countryAr: 'بوليفيا', countryEn: 'Bolivia' },
+  { code: 'PYG', symbol: '₲', nameAr: 'غواراني باراغوياني', nameEn: 'Paraguayan Guaraní', countryAr: 'باراغواي', countryEn: 'Paraguay' },
+  { code: 'VES', symbol: 'Bs.S', nameAr: 'بوليفار فنزويلي', nameEn: 'Venezuelan Bolívar', countryAr: 'فنزويلا', countryEn: 'Venezuela' },
+  { code: 'GTQ', symbol: 'Q', nameAr: 'كيتسال غواتيمالي', nameEn: 'Guatemalan Quetzal', countryAr: 'غواتيمالا', countryEn: 'Guatemala' },
+  { code: 'HNL', symbol: 'L', nameAr: 'ليمبيرا هندوراسي', nameEn: 'Honduran Lempira', countryAr: 'هندوراس', countryEn: 'Honduras' },
+  { code: 'CRC', symbol: '₡', nameAr: 'كولون كوستاريكي', nameEn: 'Costa Rican Colón', countryAr: 'كوستاريكا', countryEn: 'Costa Rica' },
+  { code: 'DOP', symbol: 'RD$', nameAr: 'بيزو دومينيكاني', nameEn: 'Dominican Peso', countryAr: 'الدومينيكان', countryEn: 'Dominican Republic' },
+  { code: 'CUP', symbol: '$', nameAr: 'بيزو كوبي', nameEn: 'Cuban Peso', countryAr: 'كوبا', countryEn: 'Cuba' },
+  { code: 'JMD', symbol: 'J$', nameAr: 'دولار جامايكي', nameEn: 'Jamaican Dollar', countryAr: 'جامايكا', countryEn: 'Jamaica' },
+  { code: 'TTD', symbol: 'TT$', nameAr: 'دولار ترينيداد', nameEn: 'Trinidad Dollar', countryAr: 'ترينيداد وتوباغو', countryEn: 'Trinidad & Tobago' },
+  // أفريقيا
+  { code: 'ZAR', symbol: 'R', nameAr: 'راند جنوب أفريقي', nameEn: 'South African Rand', countryAr: 'جنوب أفريقيا', countryEn: 'South Africa' },
+  { code: 'NGN', symbol: '₦', nameAr: 'نايرا نيجيرية', nameEn: 'Nigerian Naira', countryAr: 'نيجيريا', countryEn: 'Nigeria' },
+  { code: 'GHS', symbol: '₵', nameAr: 'سيدي غاني', nameEn: 'Ghanaian Cedi', countryAr: 'غانا', countryEn: 'Ghana' },
+  { code: 'KES', symbol: 'KSh', nameAr: 'شلن كيني', nameEn: 'Kenyan Shilling', countryAr: 'كينيا', countryEn: 'Kenya' },
+  { code: 'ETB', symbol: 'Br', nameAr: 'بير إثيوبي', nameEn: 'Ethiopian Birr', countryAr: 'إثيوبيا', countryEn: 'Ethiopia' },
+  { code: 'TZS', symbol: 'TSh', nameAr: 'شلن تنزاني', nameEn: 'Tanzanian Shilling', countryAr: 'تنزانيا', countryEn: 'Tanzania' },
+  { code: 'UGX', symbol: 'USh', nameAr: 'شلن أوغندي', nameEn: 'Ugandan Shilling', countryAr: 'أوغندا', countryEn: 'Uganda' },
+  { code: 'RWF', symbol: 'RF', nameAr: 'فرنك رواندي', nameEn: 'Rwandan Franc', countryAr: 'رواندا', countryEn: 'Rwanda' },
+  { code: 'XOF', symbol: 'CFA', nameAr: 'فرنك أفريقي غرب', nameEn: 'West African CFA', countryAr: 'غرب أفريقيا', countryEn: 'West Africa' },
+  { code: 'XAF', symbol: 'FCFA', nameAr: 'فرنك أفريقي وسط', nameEn: 'Central African CFA', countryAr: 'وسط أفريقيا', countryEn: 'Central Africa' },
+  { code: 'MZN', symbol: 'MT', nameAr: 'ميتيكال موزمبيقي', nameEn: 'Mozambican Metical', countryAr: 'موزمبيق', countryEn: 'Mozambique' },
+  { code: 'ZMW', symbol: 'ZK', nameAr: 'كواشا زامبي', nameEn: 'Zambian Kwacha', countryAr: 'زامبيا', countryEn: 'Zambia' },
+  { code: 'BWP', symbol: 'P', nameAr: 'بولا بوتسواني', nameEn: 'Botswanan Pula', countryAr: 'بوتسوانا', countryEn: 'Botswana' },
+  { code: 'MUR', symbol: '₨', nameAr: 'روبية موريشيوسية', nameEn: 'Mauritian Rupee', countryAr: 'موريشيوس', countryEn: 'Mauritius' },
+  { code: 'SCR', symbol: '₨', nameAr: 'روبية سيشيلية', nameEn: 'Seychellois Rupee', countryAr: 'سيشيل', countryEn: 'Seychelles' },
+  { code: 'MGA', symbol: 'Ar', nameAr: 'أرياري مدغشقري', nameEn: 'Malagasy Ariary', countryAr: 'مدغشقر', countryEn: 'Madagascar' },
+  { code: 'AOA', symbol: 'Kz', nameAr: 'كوانزا أنغولي', nameEn: 'Angolan Kwanza', countryAr: 'أنغولا', countryEn: 'Angola' },
+  { code: 'CDF', symbol: 'FC', nameAr: 'فرنك كونغولي', nameEn: 'Congolese Franc', countryAr: 'الكونغو', countryEn: 'Congo' },
+  { code: 'GMD', symbol: 'D', nameAr: 'دالاسي غامبي', nameEn: 'Gambian Dalasi', countryAr: 'غامبيا', countryEn: 'Gambia' },
+  { code: 'SLL', symbol: 'Le', nameAr: 'ليون سيراليوني', nameEn: 'Sierra Leonean Leone', countryAr: 'سيراليون', countryEn: 'Sierra Leone' },
+  { code: 'GNF', symbol: 'FG', nameAr: 'فرنك غيني', nameEn: 'Guinean Franc', countryAr: 'غينيا', countryEn: 'Guinea' },
+  { code: 'MWK', symbol: 'MK', nameAr: 'كواشا مالاوية', nameEn: 'Malawian Kwacha', countryAr: 'مالاوي', countryEn: 'Malawi' },
+  { code: 'ZWL', symbol: 'Z$', nameAr: 'دولار زيمبابوي', nameEn: 'Zimbabwean Dollar', countryAr: 'زيمبابوي', countryEn: 'Zimbabwe' },
+  // أوقيانوسيا
+  { code: 'AUD', symbol: 'A$', nameAr: 'دولار أسترالي', nameEn: 'Australian Dollar', countryAr: 'أستراليا', countryEn: 'Australia' },
+  { code: 'NZD', symbol: 'NZ$', nameAr: 'دولار نيوزيلندي', nameEn: 'New Zealand Dollar', countryAr: 'نيوزيلندا', countryEn: 'New Zealand' },
+  { code: 'PGK', symbol: 'K', nameAr: 'كينا بابوا نيوغينيا', nameEn: 'Papua New Guinean Kina', countryAr: 'بابوا غينيا الجديدة', countryEn: 'Papua New Guinea' },
+  { code: 'FJD', symbol: 'FJ$', nameAr: 'دولار فيجي', nameEn: 'Fijian Dollar', countryAr: 'فيجي', countryEn: 'Fiji' },
+  { code: 'SBD', symbol: 'SI$', nameAr: 'دولار جزر سليمان', nameEn: 'Solomon Islands Dollar', countryAr: 'جزر سليمان', countryEn: 'Solomon Islands' },
+  { code: 'TOP', symbol: 'T$', nameAr: 'بانغا تونغي', nameEn: 'Tongan Paʻanga', countryAr: 'تونغا', countryEn: 'Tonga' },
+  { code: 'WST', symbol: 'WS$', nameAr: 'تالا ساموا', nameEn: 'Samoan Tālā', countryAr: 'ساموا', countryEn: 'Samoa' },
+];
+
+// ─────────────────────────────────────────────────────────────
+// Trading Platforms
+// ─────────────────────────────────────────────────────────────
+
+interface TradingPlatform {
+  name: string;
+  type: 'crypto' | 'forex';
+  abbr: string;
+  color: string;
+}
+
+const TRADING_PLATFORMS: TradingPlatform[] = [
+  // ═══ منصات الكريبتو
+  { name: 'Binance', type: 'crypto', abbr: 'BIN', color: 'bg-yellow-500' },
+  { name: 'Bybit', type: 'crypto', abbr: 'BYB', color: 'bg-orange-500' },
+  { name: 'OKX', type: 'crypto', abbr: 'OKX', color: 'bg-slate-700' },
+  { name: 'KuCoin', type: 'crypto', abbr: 'KUC', color: 'bg-green-600' },
+  { name: 'Kraken', type: 'crypto', abbr: 'KRK', color: 'bg-purple-700' },
+  { name: 'Coinbase', type: 'crypto', abbr: 'CB', color: 'bg-blue-600' },
+  { name: 'Bitfinex', type: 'crypto', abbr: 'BFX', color: 'bg-green-700' },
+  { name: 'HTX (Huobi)', type: 'crypto', abbr: 'HTX', color: 'bg-blue-500' },
+  { name: 'Gate.io', type: 'crypto', abbr: 'GIO', color: 'bg-red-600' },
+  { name: 'MEXC', type: 'crypto', abbr: 'MEX', color: 'bg-blue-400' },
+  { name: 'Bitget', type: 'crypto', abbr: 'BTG', color: 'bg-cyan-600' },
+  { name: 'Crypto.com', type: 'crypto', abbr: 'CDC', color: 'bg-blue-800' },
+  { name: 'Gemini', type: 'crypto', abbr: 'GEM', color: 'bg-sky-600' },
+  { name: 'Bitstamp', type: 'crypto', abbr: 'BST', color: 'bg-green-800' },
+  { name: 'Phemex', type: 'crypto', abbr: 'PHX', color: 'bg-purple-600' },
+  { name: 'BingX', type: 'crypto', abbr: 'BNX', color: 'bg-blue-700' },
+  { name: 'CoinEx', type: 'crypto', abbr: 'CEX', color: 'bg-green-500' },
+  { name: 'Bitrue', type: 'crypto', abbr: 'BTR', color: 'bg-red-500' },
+  { name: 'Deribit', type: 'crypto', abbr: 'DRB', color: 'bg-indigo-600' },
+  { name: 'BitMEX', type: 'crypto', abbr: 'BMX', color: 'bg-slate-800' },
+  { name: 'Poloniex', type: 'crypto', abbr: 'POL', color: 'bg-teal-600' },
+  { name: 'LBank', type: 'crypto', abbr: 'LBK', color: 'bg-violet-600' },
+  { name: 'AscendEX', type: 'crypto', abbr: 'ASC', color: 'bg-cyan-700' },
+  { name: 'WazirX', type: 'crypto', abbr: 'WZX', color: 'bg-blue-500' },
+  { name: 'CoinDCX', type: 'crypto', abbr: 'CDX', color: 'bg-blue-600' },
+  { name: 'Uniswap', type: 'crypto', abbr: 'UNI', color: 'bg-pink-600' },
+  { name: 'PancakeSwap', type: 'crypto', abbr: 'CAKE', color: 'bg-yellow-600' },
+  { name: 'SushiSwap', type: 'crypto', abbr: 'SUSHI', color: 'bg-rose-600' },
+  { name: '1inch', type: 'crypto', abbr: '1IN', color: 'bg-red-700' },
+  { name: 'DigiFinex', type: 'crypto', abbr: 'DGF', color: 'bg-blue-500' },
+  { name: 'ProBit', type: 'crypto', abbr: 'PRB', color: 'bg-orange-600' },
+  { name: 'Nominex', type: 'crypto', abbr: 'NMX', color: 'bg-emerald-600' },
+  { name: 'Latoken', type: 'crypto', abbr: 'LAT', color: 'bg-slate-600' },
+  { name: 'ZT Exchange', type: 'crypto', abbr: 'ZT', color: 'bg-red-600' },
+  // ═══ منصات الفوركس
+  { name: 'MetaTrader 4', type: 'forex', abbr: 'MT4', color: 'bg-blue-700' },
+  { name: 'MetaTrader 5', type: 'forex', abbr: 'MT5', color: 'bg-blue-800' },
+  { name: 'cTrader', type: 'forex', abbr: 'cTR', color: 'bg-green-700' },
+  { name: 'Exness', type: 'forex', abbr: 'EXN', color: 'bg-green-600' },
+  { name: 'IC Markets', type: 'forex', abbr: 'ICM', color: 'bg-blue-600' },
+  { name: 'XM', type: 'forex', abbr: 'XM', color: 'bg-orange-600' },
+  { name: 'Pepperstone', type: 'forex', abbr: 'PPS', color: 'bg-green-800' },
+  { name: 'FXTM (ForexTime)', type: 'forex', abbr: 'FXTM', color: 'bg-red-600' },
+  { name: 'AvaTrade', type: 'forex', abbr: 'AVA', color: 'bg-blue-500' },
+  { name: 'FP Markets', type: 'forex', abbr: 'FPM', color: 'bg-blue-700' },
+  { name: 'HotForex (HFM)', type: 'forex', abbr: 'HFM', color: 'bg-orange-500' },
+  { name: 'OctaFX', type: 'forex', abbr: 'OCT', color: 'bg-yellow-600' },
+  { name: 'OANDA', type: 'forex', abbr: 'OAN', color: 'bg-red-700' },
+  { name: 'IG Group', type: 'forex', abbr: 'IG', color: 'bg-blue-600' },
+  { name: 'CMC Markets', type: 'forex', abbr: 'CMC', color: 'bg-slate-700' },
+  { name: 'Tickmill', type: 'forex', abbr: 'TKM', color: 'bg-teal-700' },
+  { name: 'FXCM', type: 'forex', abbr: 'FXCM', color: 'bg-blue-800' },
+  { name: 'ThinkMarkets', type: 'forex', abbr: 'THK', color: 'bg-cyan-700' },
+  { name: 'Vantage FX', type: 'forex', abbr: 'VFX', color: 'bg-slate-600' },
+  { name: 'FBS', type: 'forex', abbr: 'FBS', color: 'bg-orange-600' },
+  { name: 'Forex4you', type: 'forex', abbr: 'F4U', color: 'bg-green-600' },
+  { name: 'InstaForex', type: 'forex', abbr: 'IFX', color: 'bg-red-600' },
+  { name: 'RoboForex', type: 'forex', abbr: 'RBF', color: 'bg-blue-500' },
+  { name: 'FXPro', type: 'forex', abbr: 'FXP', color: 'bg-indigo-600' },
+  { name: 'Admiral Markets', type: 'forex', abbr: 'ADM', color: 'bg-red-700' },
+  { name: 'BlackBull Markets', type: 'forex', abbr: 'BBM', color: 'bg-slate-800' },
+  { name: 'EightCap', type: 'forex', abbr: '8CP', color: 'bg-blue-600' },
+  { name: 'Fusion Markets', type: 'forex', abbr: 'FUS', color: 'bg-purple-600' },
+  { name: 'TMGM', type: 'forex', abbr: 'TMG', color: 'bg-slate-700' },
+  { name: 'Spreadex', type: 'forex', abbr: 'SPX', color: 'bg-green-700' },
+  { name: 'Axiory', type: 'forex', abbr: 'AXR', color: 'bg-blue-700' },
+  { name: 'Amarkets', type: 'forex', abbr: 'AMK', color: 'bg-orange-700' },
+  { name: 'NordFX', type: 'forex', abbr: 'NFX', color: 'bg-blue-800' },
+  { name: 'JustForex', type: 'forex', abbr: 'JFX', color: 'bg-green-700' },
+  { name: 'Darwinex', type: 'forex', abbr: 'DWX', color: 'bg-teal-600' },
+  { name: 'Fortrade', type: 'forex', abbr: 'FTD', color: 'bg-blue-600' },
+  { name: 'BDSwiss', type: 'forex', abbr: 'BDS', color: 'bg-cyan-600' },
+  { name: 'XTB', type: 'forex', abbr: 'XTB', color: 'bg-blue-700' },
+  { name: 'Trade.com', type: 'forex', abbr: 'TRC', color: 'bg-green-600' },
+  { name: 'Capital.com', type: 'forex', abbr: 'CAP', color: 'bg-blue-500' },
+  { name: 'ATFX', type: 'forex', abbr: 'ATF', color: 'bg-red-600' },
+  { name: 'Scope Markets', type: 'forex', abbr: 'SCO', color: 'bg-slate-600' },
+];
+
 // ─────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────
@@ -80,110 +345,86 @@ const SUBSCRIBER_STATUSES = ['نشط', 'مشترك جديد', 'رسوم مستح
 
 const GULF_BANKS: Record<string, string[]> = {
   'المملكة العربية السعودية': [
-    'البنك الأهلي السعودي (SNB)',
-    'مصرف الراجحي',
-    'بنك الرياض',
-    'البنك السعودي الفرنسي (BSF)',
-    'البنك السعودي البريطاني (SABB)',
-    'مصرف الإنماء',
-    'بنك البلاد',
-    'بنك الجزيرة',
-    'البنك العربي الوطني',
-    'بنك ساب',
-    'بنك الخليج',
-    'البنك السعودي للاستثمار (SAIB)',
+    'البنك الأهلي السعودي (SNB)', 'مصرف الراجحي', 'بنك الرياض',
+    'البنك السعودي الفرنسي (BSF)', 'البنك السعودي البريطاني (SABB)',
+    'مصرف الإنماء', 'بنك البلاد', 'بنك الجزيرة',
+    'البنك العربي الوطني', 'بنك ساب', 'بنك الخليج', 'البنك السعودي للاستثمار (SAIB)',
   ],
   'الإمارات العربية المتحدة': [
-    'بنك الإمارات دبي الوطني (ENBD)',
-    'بنك أبوظبي الأول (FAB)',
-    'بنك أبوظبي التجاري (ADCB)',
-    'مصرف الإمارات الإسلامي',
-    'بنك دبي الإسلامي (DIB)',
-    'بنك المشرق',
-    'بنك الفجيرة الوطني',
-    'بنك رأس الخيمة الوطني (RAKBANK)',
-    'بنك الاتحاد الوطني',
-    'بنك دبي التجاري',
-    'بنك الشارقة الإسلامي',
-    'بنك نور',
+    'بنك الإمارات دبي الوطني (ENBD)', 'بنك أبوظبي الأول (FAB)',
+    'بنك أبوظبي التجاري (ADCB)', 'مصرف الإمارات الإسلامي',
+    'بنك دبي الإسلامي (DIB)', 'بنك المشرق', 'بنك الفجيرة الوطني',
+    'بنك رأس الخيمة الوطني (RAKBANK)', 'بنك الاتحاد الوطني',
+    'بنك دبي التجاري', 'بنك الشارقة الإسلامي', 'بنك نور',
   ],
   'قطر': [
-    'بنك قطر الوطني (QNB)',
-    'المصرف التجاري القطري',
-    'بنك الدوحة',
-    'بنك أهلي قطر',
-    'بنك الريان',
-    'مصرف قطر الإسلامي (QIB)',
-    'بنك قطر الدولي الإسلامي',
-    'بنك برقان',
+    'بنك قطر الوطني (QNB)', 'المصرف التجاري القطري', 'بنك الدوحة',
+    'بنك أهلي قطر', 'بنك الريان', 'مصرف قطر الإسلامي (QIB)',
+    'بنك قطر الدولي الإسلامي', 'بنك برقان',
   ],
   'الكويت': [
-    'بنك الكويت الوطني (NBK)',
-    'بيت التمويل الكويتي (بيتك)',
-    'البنك التجاري الكويتي',
-    'بنك الخليج',
-    'بنك برقان',
+    'بنك الكويت الوطني (NBK)', 'بيت التمويل الكويتي (بيتك)',
+    'البنك التجاري الكويتي', 'بنك الخليج', 'بنك برقان',
   ],
   'البحرين': [
-    'بنك البحرين الوطني',
-    'بنك أهلي البحرين',
-    'مصرف الراجحي البحرين',
-    'بنك الكويت والبحرين',
+    'بنك البحرين الوطني', 'بنك أهلي البحرين',
+    'مصرف الراجحي البحرين', 'بنك الكويت والبحرين',
   ],
   'عُمان': [
-    'بنك مسقط',
-    'بنك ظفار',
-    'بنك صحار',
-    'البنك الوطني العُماني',
-    'بنك عُمان العربي',
-    'بنك نزوى',
+    'بنك مسقط', 'بنك ظفار', 'بنك صحار',
+    'البنك الوطني العُماني', 'بنك عُمان العربي', 'بنك نزوى',
   ],
 };
 
 const ALL_BANKS_FLAT = Object.values(GULF_BANKS).flat();
 
+const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
+  sectionNames: {
+    dashboard: 'النظام الإداري',
+    admin: 'نظام الإستعلام عن الأرباح',
+    addOperations: 'سجل العمليات',
+    addSubscriber: 'إضافة مشترك',
+    systemAdmin: 'لوحة إدارة النظام',
+  },
+  cardOverrides: {
+    totalSubscribers: '',
+    activeCount: '',
+    totalProfits: '',
+    completedOps: '',
+    activeSubscriptions: '',
+    totalSubsCount: '',
+    pendingFees: '',
+    activationOps: '',
+  },
+  institutionalText: '',
+  systemDate: '',
+};
+
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
 
-function uid(): string {
-  return Math.random().toString(36).slice(2, 11);
-}
-
-function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function randomFrom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function randomAmount(min: number, max: number): number {
-  return Math.floor((Math.random() * (max - min) + min) / 100) * 100;
-}
-
+function uid(): string { return Math.random().toString(36).slice(2, 11); }
+function todayStr(): string { return new Date().toISOString().split('T')[0]; }
+function randomFrom<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function randomInt(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randomAmount(min: number, max: number): number { return Math.floor((Math.random() * (max - min) + min) / 100) * 100; }
 function randomDate(y1: number, y2: number): string {
   const y = randomInt(y1, y2);
   const m = String(randomInt(1, 12)).padStart(2, '0');
   const d = String(randomInt(1, 28)).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
-
 function randomPhone(): string {
   return `0${randomFrom(['5', '55', '50', '56', '53'])}${Array.from({ length: 7 }, () => randomInt(0, 9)).join('')}`;
 }
-
 function randomIBAN(): string {
   const code = randomFrom(['SA', 'AE', 'QA', 'KW']);
   return `${code}${Array.from({ length: 20 }, () => randomInt(0, 9)).join('')}`;
 }
 
 // ─────────────────────────────────────────────────────────────
-// Initial Data — أسماء خليجية حقيقية
+// Initial Data
 // ─────────────────────────────────────────────────────────────
 
 const FIRST_NAMES = [
@@ -208,14 +449,13 @@ const LAST_NAMES = [
 function buildInitialSubscribers(count: number): Subscriber[] {
   return Array.from({ length: count }, (_, i) => {
     const firstName = FIRST_NAMES[i % FIRST_NAMES.length];
-    const lastName  = LAST_NAMES[i % LAST_NAMES.length];
-    const name = `${firstName} ${lastName}`;
+    const lastName = LAST_NAMES[i % LAST_NAMES.length];
     const sa = randomAmount(5000, 60000);
     const pr = randomAmount(500, 20000);
     const sf = Math.random() > 0.6 ? randomAmount(200, 3000) : 0;
     return {
       id: uid(),
-      name,
+      name: `${firstName} ${lastName}`,
       phone: randomPhone(),
       iban: randomIBAN(),
       subscriptionAmount: sa,
@@ -229,6 +469,8 @@ function buildInitialSubscribers(count: number): Subscriber[] {
       joinDate: randomDate(2020, 2024),
       subscriberStatus: randomFrom(SUBSCRIBER_STATUSES),
       notes: '',
+      currency: randomFrom(['SAR', 'AED', 'USD', 'KWD', 'QAR']),
+      platform: randomFrom(['Binance', 'Bybit', 'MetaTrader 4', 'MetaTrader 5', 'Exness', 'OKX']),
     };
   });
 }
@@ -244,19 +486,12 @@ const INITIAL_OPERATIONS: Operation[] = Array.from({ length: 60 }, () => ({
   status: randomFrom(OPERATION_STATUSES),
 }));
 
-const INITIAL_STATS: Stats = {
-  totalSubscribers: '80',
-  totalProfits: '١٬٢٨٤٬٥٠٠ ر.س',
-  activeSubscriptions: '62',
-  pendingRequests: '8',
-};
-
 const CHART_DATA = [
   { name: 'يناير', value: 420000, target: 400000 },
   { name: 'فبراير', value: 380000, target: 420000 },
-  { name: 'مارس',  value: 510000, target: 450000 },
+  { name: 'مارس', value: 510000, target: 450000 },
   { name: 'إبريل', value: 467000, target: 470000 },
-  { name: 'مايو',  value: 590000, target: 500000 },
+  { name: 'مايو', value: 590000, target: 500000 },
   { name: 'يونيو', value: 648000, target: 540000 },
   { name: 'يوليو', value: 712000, target: 580000 },
 ];
@@ -267,7 +502,7 @@ const CHART_DATA = [
 
 function amountColor(status: string): string {
   if (status === 'تنشيط النظام') return 'text-red-600 font-bold';
-  if (status === 'اشتراك جديد')  return 'text-yellow-600 font-bold';
+  if (status === 'اشتراك جديد') return 'text-yellow-600 font-bold';
   if (status === 'قيد المعالجة') return 'text-blue-600 font-bold';
   return 'text-emerald-600 font-bold';
 }
@@ -275,15 +510,15 @@ function amountColor(status: string): string {
 function statusBadge(status: string): React.ReactNode {
   const map: Record<string, string> = {
     'تنشيط النظام': 'bg-red-100 text-red-700 border-red-200',
-    'اشتراك جديد':  'bg-yellow-100 text-yellow-700 border-yellow-200',
+    'اشتراك جديد': 'bg-yellow-100 text-yellow-700 border-yellow-200',
     'قيد المعالجة': 'bg-blue-100 text-blue-700 border-blue-200',
-    'مكتمل':        'bg-emerald-100 text-emerald-700 border-emerald-200',
+    'مكتمل': 'bg-emerald-100 text-emerald-700 border-emerald-200',
   };
   const dotColor: Record<string, string> = {
     'تنشيط النظام': 'bg-red-500',
-    'اشتراك جديد':  'bg-yellow-500',
+    'اشتراك جديد': 'bg-yellow-500',
     'قيد المعالجة': 'bg-blue-500',
-    'مكتمل':        'bg-emerald-500',
+    'مكتمل': 'bg-emerald-500',
   };
   const cls = map[status] ?? 'bg-gray-100 text-gray-600 border-gray-200';
   const dot = dotColor[status] ?? 'bg-gray-400';
@@ -297,12 +532,12 @@ function statusBadge(status: string): React.ReactNode {
 
 function subStatusBadge(status: string): React.ReactNode {
   const map: Record<string, string> = {
-    'نشط':          'bg-emerald-100 text-emerald-700 border-emerald-200',
-    'مشترك جديد':   'bg-blue-100 text-blue-700 border-blue-200',
-    'رسوم مستحقة':  'bg-orange-100 text-orange-700 border-orange-200',
-    'توزيع أرباح':  'bg-purple-100 text-purple-700 border-purple-200',
-    'معلق':         'bg-gray-100 text-gray-600 border-gray-200',
-    'موقوف':        'bg-red-100 text-red-700 border-red-200',
+    'نشط': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    'مشترك جديد': 'bg-blue-100 text-blue-700 border-blue-200',
+    'رسوم مستحقة': 'bg-orange-100 text-orange-700 border-orange-200',
+    'توزيع أرباح': 'bg-purple-100 text-purple-700 border-purple-200',
+    'معلق': 'bg-gray-100 text-gray-600 border-gray-200',
+    'موقوف': 'bg-red-100 text-red-700 border-red-200',
   };
   const cls = map[status] ?? 'bg-gray-100 text-gray-600 border-gray-200';
   return <Badge className={`${cls} border text-xs hover:opacity-90`}>{status}</Badge>;
@@ -330,104 +565,165 @@ function useLocalStorage<T>(key: string, init: T): [T, (v: T) => void] {
 // ─────────────────────────────────────────────────────────────
 
 const EMPTY_SUB: Omit<Subscriber, 'id'> = {
-  name:'', phone:'', iban:'', subscriptionAmount:0, profits:0, systemFees:0,
-  systemAccount:'', walletAddress:'', bankName:'', joinDate:'',
-  subscriberStatus:'نشط', notes:'',
+  name: '', phone: '', iban: '', subscriptionAmount: 0, profits: 0, systemFees: 0,
+  systemAccount: '', walletAddress: '', bankName: '', joinDate: '',
+  subscriberStatus: 'نشط', notes: '', currency: '', platform: '',
 };
 
 const EMPTY_OP: Omit<Operation, 'id'> = {
-  subscriberName:'', operation:'توزيع ارباح', amount:'', date: todayStr(), status:'مكتمل',
+  subscriberName: '', operation: 'توزيع ارباح', amount: '', date: todayStr(), status: 'مكتمل',
 };
 
 // ─────────────────────────────────────────────────────────────
 // Root
 // ─────────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'admin' | 'addOperations' | 'addSubscriber';
+type Tab = 'dashboard' | 'admin' | 'addOperations' | 'addSubscriber' | 'systemAdmin';
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [subscribers, setSubscribers] = useLocalStorage<Subscriber[]>('msub_v2', INITIAL_SUBSCRIBERS);
-  const [operations,  setOperations]  = useLocalStorage<Operation[]>('mops_v2',  INITIAL_OPERATIONS);
-  const [totalProfits, setTotalProfits] = useLocalStorage<string>('mprof_v2', INITIAL_STATS.totalProfits);
+  const [operations, setOperations] = useLocalStorage<Operation[]>('mops_v2', INITIAL_OPERATIONS);
+  const [systemConfig, setSystemConfig] = useLocalStorage<SystemConfig>('msys_config_v2', DEFAULT_SYSTEM_CONFIG);
 
-  const liveStats: Stats = useMemo(() => ({
-    totalSubscribers:    String(subscribers.length),
-    totalProfits,
-    activeSubscriptions: String(subscribers.filter(s => s.subscriberStatus === 'نشط').length),
-    pendingRequests:     String(subscribers.filter(s => s.systemFees > 0).length),
-  }), [subscribers, totalProfits]);
+  const updateConfig = (partial: Partial<SystemConfig>) => {
+    setSystemConfig({ ...systemConfig, ...partial });
+  };
+
+  const sn = systemConfig.sectionNames;
+  const co = systemConfig.cardOverrides;
+
+  const completedOps = operations.filter(o => o.status === 'مكتمل').length;
+  const activationOps = operations.filter(o => o.status === 'تنشيط النظام').length;
+
+  const liveStats = useMemo(() => ({
+    totalSubscribers: co.totalSubscribers || String(subscribers.length),
+    totalProfits: co.totalProfits || '١٬٢٨٤٬٥٠٠ ر.س',
+    activeSubscriptions: co.activeSubscriptions || String(subscribers.filter(s => s.subscriberStatus === 'نشط').length),
+    pendingRequests: co.pendingFees || String(subscribers.filter(s => s.systemFees > 0).length),
+    activeCount: co.activeCount || String(subscribers.filter(s => s.subscriberStatus === 'نشط').length),
+    completedOpsStr: co.completedOps || String(completedOps),
+    totalSubsCount: co.totalSubsCount || String(subscribers.length),
+    activationOpsStr: co.activationOps || String(activationOps),
+  }), [subscribers, co, completedOps, activationOps]);
 
   const navItems: { tab: Tab; icon: React.ReactNode; label: string }[] = [
-    { tab: 'dashboard',     icon: <LayoutDashboard size={20} />, label: 'لوحة التحكم' },
-    { tab: 'admin',         icon: <Shield size={20} />,          label: 'لوحة الأدمن' },
-    { tab: 'addOperations', icon: <ClipboardList size={20} />,   label: 'إضافة عمليات' },
-    { tab: 'addSubscriber', icon: <UserPlus size={20} />,        label: 'إضافة مشترك' },
+    { tab: 'dashboard', icon: <LayoutDashboard size={20} />, label: sn.dashboard },
+    { tab: 'systemAdmin', icon: <SlidersHorizontal size={20} />, label: sn.systemAdmin },
+    { tab: 'admin', icon: <Shield size={20} />, label: sn.admin },
+    { tab: 'addOperations', icon: <ClipboardList size={20} />, label: sn.addOperations },
+    { tab: 'addSubscriber', icon: <UserPlus size={20} />, label: sn.addSubscriber },
   ];
+
+  const systemDisplayDate = systemConfig.systemDate
+    || new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
     <div className="min-h-screen bg-slate-50 flex" dir="rtl">
-      {/* ── Sidebar ── */}
-      <aside className="w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white hidden lg:flex flex-col sticky top-0 h-screen shadow-2xl z-20">
-        <div className="p-5 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg">
-              <Database size={20} className="text-white" />
-            </div>
-            <div>
-              <p className="font-black text-sm leading-tight">مركز المشتركين</p>
-              <p className="text-xs text-slate-400">Moshtarikeen Hub</p>
-            </div>
+      {/* ── Enterprise Sidebar ── */}
+      <motion.aside
+        animate={{ width: sidebarCollapsed ? 72 : 256 }}
+        transition={{ duration: 0.25, ease: 'easeInOut' }}
+        className="bg-gradient-to-b from-slate-900 to-slate-800 text-white hidden lg:flex flex-col sticky top-0 h-screen shadow-2xl z-20 overflow-hidden flex-shrink-0"
+      >
+        {/* Logo */}
+        <div className="p-4 border-b border-white/10 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg flex-shrink-0">
+            <Database size={20} className="text-white" />
           </div>
+          <AnimatePresence>
+            {!sidebarCollapsed && (
+              <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15 }}>
+                <p className="font-black text-sm leading-tight whitespace-nowrap">مركز المشتركين</p>
+                <p className="text-xs text-slate-400 whitespace-nowrap">Moshtarikeen Hub</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <div className="mx-4 mt-4 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs text-emerald-400 font-medium">النظام يعمل</span>
-          <span className="mr-auto text-xs text-slate-500">{subscribers.length} مشترك</span>
-        </div>
+        {/* Status Pill */}
+        <AnimatePresence>
+          {!sidebarCollapsed && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="mx-3 mt-3 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+              <span className="text-xs text-emerald-400 font-medium">النظام يعمل</span>
+              <span className="mr-auto text-xs text-slate-500">{subscribers.length} مشترك</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {sidebarCollapsed && (
+          <div className="flex justify-center mt-3">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          </div>
+        )}
 
-        <nav className="flex-1 px-3 space-y-1 mt-4 overflow-y-auto">
+        {/* Nav */}
+        <nav className="flex-1 px-2 space-y-1 mt-3 overflow-y-auto">
           {navItems.map(item => (
             <button key={item.tab} onClick={() => setActiveTab(item.tab)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+              title={sidebarCollapsed ? item.label : undefined}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                 activeTab === item.tab
                   ? 'bg-gradient-to-l from-emerald-600/30 to-teal-600/20 text-emerald-400 border border-emerald-500/30 shadow-lg'
                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
-              }`}>
-              {item.icon}
-              <span>{item.label}</span>
-              {activeTab === item.tab && <ChevronLeft size={13} className="mr-auto opacity-60" />}
+              } ${sidebarCollapsed ? 'justify-center' : ''}`}>
+              <span className="flex-shrink-0">{item.icon}</span>
+              <AnimatePresence>
+                {!sidebarCollapsed && (
+                  <motion.span initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                    className="flex-1 text-right truncate text-sm">
+                    {item.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              {!sidebarCollapsed && activeTab === item.tab && (
+                <ChevronLeft size={13} className="flex-shrink-0 opacity-60" />
+              )}
             </button>
           ))}
           <Separator className="my-2 bg-white/10" />
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-white/5 hover:text-white transition-all">
-            <Settings size={20} /><span>الإعدادات</span>
+          <button title={sidebarCollapsed ? 'الإعدادات' : undefined}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-white/5 hover:text-white transition-all ${sidebarCollapsed ? 'justify-center' : ''}`}>
+            <Settings size={20} className="flex-shrink-0" />
+            {!sidebarCollapsed && <span>الإعدادات</span>}
           </button>
         </nav>
 
-        <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 mb-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0">
-              <User size={14} className="text-white" />
+        {/* User + Toggle */}
+        <div className="p-3 border-t border-white/10">
+          {!sidebarCollapsed && (
+            <div className="flex items-center gap-2 p-2 rounded-xl bg-white/5 mb-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0">
+                <User size={14} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-white truncate">المدير العام</p>
+                <p className="text-xs text-slate-500 truncate">admin@system.com</p>
+              </div>
+              <Lock size={12} className="text-slate-600 flex-shrink-0" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-white truncate">المدير العام</p>
-              <p className="text-xs text-slate-500 truncate">admin@system.com</p>
-            </div>
-            <Lock size={12} className="text-slate-600 flex-shrink-0" />
-          </div>
-          <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-400 text-xs font-medium transition-colors">
-            <LogOut size={15} /><span>تسجيل الخروج</span>
+          )}
+          {!sidebarCollapsed && (
+            <button className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-400 text-xs font-medium transition-colors mb-2">
+              <LogOut size={14} /><span>تسجيل الخروج</span>
+            </button>
+          )}
+          {/* Collapse toggle */}
+          <button onClick={() => setSidebarCollapsed(c => !c)}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white text-xs font-medium transition-colors ${sidebarCollapsed ? 'justify-center' : ''}`}>
+            {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <><PanelLeftClose size={16} /><span>طي الشريط</span></>}
           </button>
         </div>
-      </aside>
+      </motion.aside>
 
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30 shadow-sm">
           <div className="flex items-center gap-2">
+            {/* Mobile nav icons */}
             <div className="flex lg:hidden gap-1">
               {navItems.map(item => (
                 <button key={item.tab} onClick={() => setActiveTab(item.tab)}
@@ -437,11 +733,16 @@ export default function Index() {
               ))}
             </div>
             <div className="hidden lg:flex items-center gap-2">
-              <h1 className="text-lg font-black text-slate-800">نظام إدارة المشتركين</h1>
+              <h1 className="text-base font-black text-slate-800">
+                {navItems.find(n => n.tab === activeTab)?.label ?? 'النظام'}
+              </h1>
               <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs">v2.0</Badge>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-500">
+              <CalendarClock size={12} /><span>{systemDisplayDate}</span>
+            </div>
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-500">
               <Users size={12} /><span>{subscribers.length} مشترك</span>
             </div>
@@ -463,25 +764,42 @@ export default function Index() {
           {activeTab === 'dashboard' && (
             <motion.div key="dashboard" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-              <DashboardTab stats={liveStats} onProfitsChange={setTotalProfits} subscribers={subscribers} operations={operations} />
+              <DashboardTab
+                stats={liveStats}
+                subscribers={subscribers}
+                operations={operations}
+                institutionalText={systemConfig.institutionalText}
+                sectionName={sn.dashboard}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'systemAdmin' && (
+            <motion.div key="systemAdmin" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+              <SystemAdminTab
+                systemConfig={systemConfig}
+                onConfigChange={updateConfig}
+                subscribersCount={subscribers.length}
+                sectionName={sn.systemAdmin}
+              />
             </motion.div>
           )}
           {activeTab === 'admin' && (
             <motion.div key="admin" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-              <AdminPanel subscribers={subscribers} operations={operations} />
+              <AdminPanel subscribers={subscribers} operations={operations} sectionName={sn.admin} />
             </motion.div>
           )}
           {activeTab === 'addOperations' && (
             <motion.div key="addOps" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-              <AddOperationsTab operations={operations} onOperationsChange={setOperations} subscriberNames={subscribers.map(s => s.name)} />
+              <AddOperationsTab operations={operations} onOperationsChange={setOperations} subscriberNames={subscribers.map(s => s.name)} sectionName={sn.addOperations} />
             </motion.div>
           )}
           {activeTab === 'addSubscriber' && (
             <motion.div key="addSub" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-              <AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} />
+              <AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} sectionName={sn.addSubscriber} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -491,53 +809,75 @@ export default function Index() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Dashboard Tab
+// Dashboard Tab — النظام الإداري
 // ─────────────────────────────────────────────────────────────
 
-function DashboardTab({ stats, onProfitsChange, subscribers, operations }: {
-  stats: Stats;
-  onProfitsChange: (v: string) => void;
+interface LiveStats {
+  totalSubscribers: string; totalProfits: string; activeSubscriptions: string;
+  pendingRequests: string; activeCount: string; completedOpsStr: string;
+  totalSubsCount: string; activationOpsStr: string;
+}
+
+function DashboardTab({ stats, subscribers, operations, institutionalText, sectionName }: {
+  stats: LiveStats;
   subscribers: Subscriber[];
   operations: Operation[];
+  institutionalText: string;
+  sectionName: string;
 }) {
-  const [editOpen, setEditOpen] = useState(false);
-  const [draft, setDraft] = useState('');
-
   const completedOps = operations.filter(o => o.status === 'مكتمل').length;
-  const pendingOps   = operations.filter(o => o.status === 'قيد المعالجة').length;
+  const pendingOps = operations.filter(o => o.status === 'قيد المعالجة').length;
   const activationOps = operations.filter(o => o.status === 'تنشيط النظام').length;
 
   const statCards = [
-    { title: 'إجمالي المشتركين',  value: stats.totalSubscribers,    sub: `نشط: ${stats.activeSubscriptions}`, icon: <Users size={22} className="text-blue-600" />,    bg: 'bg-blue-50',    ring: 'ring-blue-200',    trend: '+12%', up: true,  color: 'text-blue-700' },
-    { title: 'إجمالي الأرباح',    value: stats.totalProfits,        sub: `${completedOps} عملية مكتملة`,      icon: <TrendingUp size={22} className="text-emerald-600" />, bg: 'bg-emerald-50', ring: 'ring-emerald-200', trend: '+8.3%', up: true,  color: 'text-emerald-700' },
-    { title: 'الاشتراكات النشطة', value: stats.activeSubscriptions, sub: `من ${stats.totalSubscribers} مشترك`, icon: <CheckCheck size={22} className="text-purple-600" />, bg: 'bg-purple-50',  ring: 'ring-purple-200',  trend: '+5.1%', up: true,  color: 'text-purple-700' },
-    { title: 'رسوم مستحقة',       value: stats.pendingRequests,     sub: `${activationOps} عملية تنشيط`,      icon: <AlertCircle size={22} className="text-orange-500" />, bg: 'bg-orange-50',  ring: 'ring-orange-200',  trend: '-2.4%', up: false, color: 'text-orange-600' },
+    {
+      title: 'إجمالي المشتركين',
+      value: stats.totalSubscribers,
+      sub: `نشط: ${stats.activeCount}`,
+      icon: <Users size={22} className="text-blue-600" />,
+      bg: 'bg-blue-50', ring: 'ring-blue-200', trend: '+12%', up: true, color: 'text-blue-700',
+    },
+    {
+      title: 'إجمالي الأرباح',
+      value: stats.totalProfits,
+      sub: `${stats.completedOpsStr} عملية مكتملة`,
+      icon: <TrendingUp size={22} className="text-emerald-600" />,
+      bg: 'bg-emerald-50', ring: 'ring-emerald-200', trend: '+8.3%', up: true, color: 'text-emerald-700',
+    },
+    {
+      title: 'الاشتراكات النشطة',
+      value: stats.activeSubscriptions,
+      sub: `من ${stats.totalSubsCount} مشترك`,
+      icon: <CheckCheck size={22} className="text-purple-600" />,
+      bg: 'bg-purple-50', ring: 'ring-purple-200', trend: '+5.1%', up: true, color: 'text-purple-700',
+    },
+    {
+      title: 'رسوم مستحقة',
+      value: stats.pendingRequests,
+      sub: `${stats.activationOpsStr} عملية تنشيط`,
+      icon: <AlertCircle size={22} className="text-orange-500" />,
+      bg: 'bg-orange-50', ring: 'ring-orange-200', trend: '-2.4%', up: false, color: 'text-orange-600',
+    },
   ];
 
   const pieData = [
-    { name: 'نشط',        value: subscribers.filter(s => s.subscriberStatus === 'نشط').length,          color: '#10b981' },
-    { name: 'جديد',       value: subscribers.filter(s => s.subscriberStatus === 'مشترك جديد').length,   color: '#3b82f6' },
-    { name: 'رسوم',       value: subscribers.filter(s => s.subscriberStatus === 'رسوم مستحقة').length,  color: '#f59e0b' },
-    { name: 'أرباح',      value: subscribers.filter(s => s.subscriberStatus === 'توزيع أرباح').length,  color: '#8b5cf6' },
-    { name: 'معلق',       value: subscribers.filter(s => s.subscriberStatus === 'معلق').length,         color: '#94a3b8' },
+    { name: 'نشط', value: subscribers.filter(s => s.subscriberStatus === 'نشط').length, color: '#10b981' },
+    { name: 'جديد', value: subscribers.filter(s => s.subscriberStatus === 'مشترك جديد').length, color: '#3b82f6' },
+    { name: 'رسوم', value: subscribers.filter(s => s.subscriberStatus === 'رسوم مستحقة').length, color: '#f59e0b' },
+    { name: 'أرباح', value: subscribers.filter(s => s.subscriberStatus === 'توزيع أرباح').length, color: '#8b5cf6' },
+    { name: 'معلق', value: subscribers.filter(s => s.subscriberStatus === 'معلق').length, color: '#94a3b8' },
   ].filter(d => d.value > 0);
 
   return (
     <>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-black text-slate-800">لوحة التحكم</h2>
+          <h2 className="text-2xl font-black text-slate-800">{sectionName}</h2>
           <p className="text-sm text-slate-400 mt-0.5">نظرة شاملة على أداء النظام</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 text-slate-600 border-slate-200 h-9 hidden sm:flex">
-            <Download size={13} /> تصدير
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-slate-600 border-slate-200 h-9"
-            onClick={() => { setDraft(stats.totalProfits); setEditOpen(true); }}>
-            <Pencil size={13} /> تعديل الأرباح
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" className="gap-1.5 text-slate-600 border-slate-200 h-9 hidden sm:flex">
+          <Download size={13} /> تصدير
+        </Button>
       </div>
 
       {/* Stat Cards */}
@@ -561,6 +901,21 @@ function DashboardTab({ stats, onProfitsChange, subscribers, operations }: {
         ))}
       </div>
 
+      {/* Institutional Text */}
+      {institutionalText && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-none shadow-md ring-2 ring-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 overflow-hidden">
+            <div className="h-1.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-400" />
+            <CardContent className="p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                <Star size={24} className="text-emerald-600" />
+              </div>
+              <p className="text-xl font-black text-slate-800 leading-relaxed whitespace-pre-wrap">{institutionalText}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 border-none shadow-sm ring-1 ring-slate-200">
@@ -578,23 +933,21 @@ function DashboardTab({ stats, onProfitsChange, subscribers, operations }: {
               <AreaChart data={CHART_DATA} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gVal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#10b981" stopOpacity={0.25} />
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gTgt" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.1} />
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-                <Tooltip
-                  contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12px', boxShadow: '0 4px 20px rgb(0 0 0 / 0.08)' }}
-                  formatter={(v: number, name: string) => [`${v.toLocaleString()} ر.س`, name === 'value' ? 'الأرباح' : 'الهدف']}
-                />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12px', boxShadow: '0 4px 20px rgb(0 0 0 / 0.08)' }}
+                  formatter={(v: number, name: string) => [`${v.toLocaleString()} ر.س`, name === 'value' ? 'الأرباح' : 'الهدف']} />
                 <Area type="monotone" dataKey="target" stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="5 5" fillOpacity={1} fill="url(#gTgt)" />
-                <Area type="monotone" dataKey="value"  stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#gVal)" dot={{ fill: '#10b981', strokeWidth: 2, r: 3 }} />
+                <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#gVal)" dot={{ fill: '#10b981', strokeWidth: 2, r: 3 }} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -611,7 +964,8 @@ function DashboardTab({ stats, onProfitsChange, subscribers, operations }: {
                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={78} paddingAngle={3} dataKey="value">
                   {pieData.map((entry, i) => <Cell key={i} fill={entry.color} stroke="none" />)}
                 </Pie>
-                <Tooltip formatter={(v: number, _name: string, props: any) => [`${v} مشترك`, props.payload.name]} contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
+                <Tooltip formatter={(v: number, _n: string, p: any) => [`${v} مشترك`, p.payload.name]}
+                  contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex flex-wrap gap-3 justify-center mt-1">
@@ -638,12 +992,10 @@ function DashboardTab({ stats, onProfitsChange, subscribers, operations }: {
           <CardContent className="space-y-2">
             {operations.slice(0, 6).map(op => (
               <div key={op.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  op.status === 'مكتمل' ? 'bg-emerald-100' : op.status === 'تنشيط النظام' ? 'bg-red-100' : op.status === 'اشتراك جديد' ? 'bg-yellow-100' : 'bg-blue-100'
-                }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${op.status === 'مكتمل' ? 'bg-emerald-100' : op.status === 'تنشيط النظام' ? 'bg-red-100' : 'bg-blue-100'}`}>
                   {op.status === 'مكتمل' ? <CheckCircle2 size={15} className="text-emerald-600" /> :
-                   op.status === 'تنشيط النظام' ? <AlertCircle size={15} className="text-red-500" /> :
-                   <Clock size={15} className="text-blue-500" />}
+                    op.status === 'تنشيط النظام' ? <AlertCircle size={15} className="text-red-500" /> :
+                      <Clock size={15} className="text-blue-500" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-700 truncate">{op.subscriberName}</p>
@@ -661,9 +1013,9 @@ function DashboardTab({ stats, onProfitsChange, subscribers, operations }: {
           </CardHeader>
           <CardContent className="space-y-4">
             {[
-              { label: 'عمليات مكتملة',  value: completedOps,  total: operations.length, color: 'bg-emerald-500' },
-              { label: 'قيد المعالجة',   value: pendingOps,    total: operations.length, color: 'bg-blue-500' },
-              { label: 'تنشيط النظام',   value: activationOps, total: operations.length, color: 'bg-red-500' },
+              { label: 'عمليات مكتملة', value: completedOps, total: operations.length, color: 'bg-emerald-500' },
+              { label: 'قيد المعالجة', value: pendingOps, total: operations.length, color: 'bg-blue-500' },
+              { label: 'تنشيط النظام', value: activationOps, total: operations.length, color: 'bg-red-500' },
             ].map((item, i) => (
               <div key={i} className="space-y-1.5">
                 <div className="flex justify-between text-sm">
@@ -694,65 +1046,317 @@ function DashboardTab({ stats, onProfitsChange, subscribers, operations }: {
           </CardContent>
         </Card>
       </div>
+    </>
+  );
+}
 
-      {/* Edit profits modal */}
-      <AnimatePresence>
-        {editOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-black text-slate-800">تعديل إجمالي الأرباح</h3>
-                <button onClick={() => setEditOpen(false)} className="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center"><X size={16} /></button>
+
+// ─────────────────────────────────────────────────────────────
+// System Admin Tab — لوحة إدارة النظام
+// ─────────────────────────────────────────────────────────────
+
+function SystemAdminTab({ systemConfig, onConfigChange, subscribersCount, sectionName }: {
+  systemConfig: SystemConfig;
+  onConfigChange: (partial: Partial<SystemConfig>) => void;
+  subscribersCount: number;
+  sectionName: string;
+}) {
+  const [dateInput, setDateInput] = useState(systemConfig.systemDate);
+  const [co, setCo] = useState({ ...systemConfig.cardOverrides });
+  const [sn, setSn] = useState({ ...systemConfig.sectionNames });
+  const [instText, setInstText] = useState(systemConfig.institutionalText);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  const flash = (msg: string) => { setSaved(msg); setTimeout(() => setSaved(null), 2500); };
+
+  const saveDate = () => {
+    onConfigChange({ systemDate: dateInput });
+    flash('تم تحديث تاريخ النظام');
+  };
+
+  const saveCards = () => {
+    onConfigChange({ cardOverrides: co });
+    flash('تم حفظ تعديلات البطاقات');
+  };
+
+  const saveNames = () => {
+    onConfigChange({ sectionNames: sn });
+    flash('تم تحديث أسماء الأقسام');
+  };
+
+  const saveText = () => {
+    onConfigChange({ institutionalText: instText });
+    flash('تم حفظ النص المؤسسي');
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-black text-slate-800">{sectionName}</h2>
+          <p className="text-sm text-slate-400 mt-0.5">إدارة ديناميكية كاملة للنظام</p>
+        </div>
+        <AnimatePresence>
+          {saved && (
+            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-bold shadow-lg">
+              <CheckCircle2 size={16} />{saved}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* ── 1. تحديث تاريخ النظام ── */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-blue-400 to-cyan-400" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <CalendarClock size={18} className="text-blue-500" /> تحديث تاريخ النظام
+            </CardTitle>
+            <CardDescription className="text-xs">يظهر في شريط الرأس العلوي</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">التاريخ (نص حر أو تاريخ بالتقويم)</label>
+              <Input value={dateInput} onChange={e => setDateInput(e.target.value)}
+                placeholder="مثال: الأحد 15 يناير 2025" className="h-10 border-slate-200" />
+              <p className="text-xs text-slate-400 mt-1">اتركه فارغاً لعرض التاريخ الحالي تلقائياً</p>
+            </div>
+            <Button onClick={saveDate} className="bg-blue-600 hover:bg-blue-700 gap-1.5">
+              <RefreshCw size={14} /> تحديث التاريخ
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* ── 5. تعديل أسماء الأقسام ── */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-violet-400 to-purple-400" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <Type size={18} className="text-violet-500" /> تعديل أسماء الأقسام
+            </CardTitle>
+            <CardDescription className="text-xs">يتم تحديثها فوراً في الشريط الجانبي والواجهة</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {([
+              { key: 'dashboard' as const, label: 'النظام الإداري (الرئيسي)' },
+              { key: 'systemAdmin' as const, label: 'لوحة إدارة النظام' },
+              { key: 'admin' as const, label: 'نظام الإستعلام عن الأرباح' },
+              { key: 'addOperations' as const, label: 'سجل العمليات' },
+              { key: 'addSubscriber' as const, label: 'إضافة مشترك' },
+            ]).map(item => (
+              <div key={item.key}>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">{item.label}</label>
+                <Input value={sn[item.key]} onChange={e => setSn(prev => ({ ...prev, [item.key]: e.target.value }))}
+                  className="h-9 border-slate-200 text-sm" />
+              </div>
+            ))}
+            <Button onClick={saveNames} className="bg-violet-600 hover:bg-violet-700 gap-1.5 w-full mt-1">
+              <Save size={14} /> حفظ أسماء الأقسام
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── 2. إدارة البطاقات الأربع ── */}
+      <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-emerald-400 to-teal-400" />
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+            <BarChart3 size={18} className="text-emerald-500" /> إدارة البطاقات الأربع الرئيسية
+          </CardTitle>
+          <CardDescription className="text-xs">
+            تعديلاتك تنعكس مباشرة داخل {systemConfig.sectionNames.dashboard} · اتركها فارغة للحساب التلقائي
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1 */}
+            <div className="bg-blue-50 ring-1 ring-blue-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Users size={16} className="text-blue-600" />
+                </div>
+                <span className="text-sm font-black text-blue-700">إجمالي المشتركين</span>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 mb-1.5 block">قيمة الأرباح (نص حر)</label>
-                <Input value={draft} onChange={e => setDraft(e.target.value)} className="h-11" placeholder="مثال: ١٬٢٨٤٬٥٠٠ ر.س" />
-                <p className="text-xs text-slate-400 mt-1.5">باقي الإحصائيات تُحسب تلقائياً من البيانات الفعلية.</p>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">إجمالي المشتركين</label>
+                <Input value={co.totalSubscribers} onChange={e => setCo(p => ({ ...p, totalSubscribers: e.target.value }))}
+                  placeholder={`${subscribersCount} (تلقائي)`} className="h-9 border-blue-200 bg-white text-sm" />
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setEditOpen(false)} className="border-slate-200">إلغاء</Button>
-                <Button onClick={() => { onProfitsChange(draft); setEditOpen(false); }} className="bg-emerald-600 hover:bg-emerald-700 gap-1.5 px-5">
-                  <Save size={13} /> حفظ
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">عدد النشطين</label>
+                <Input value={co.activeCount} onChange={e => setCo(p => ({ ...p, activeCount: e.target.value }))}
+                  placeholder="تلقائي" className="h-9 border-blue-200 bg-white text-sm" />
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div className="bg-emerald-50 ring-1 ring-emerald-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <TrendingUp size={16} className="text-emerald-600" />
+                </div>
+                <span className="text-sm font-black text-emerald-700">إجمالي الأرباح</span>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">إجمالي الأرباح (نص حر)</label>
+                <Input value={co.totalProfits} onChange={e => setCo(p => ({ ...p, totalProfits: e.target.value }))}
+                  placeholder="مثال: ١٬٢٨٤٬٥٠٠ ر.س" className="h-9 border-emerald-200 bg-white text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">عدد العمليات المكتملة</label>
+                <Input value={co.completedOps} onChange={e => setCo(p => ({ ...p, completedOps: e.target.value }))}
+                  placeholder="تلقائي" className="h-9 border-emerald-200 bg-white text-sm" />
+              </div>
+            </div>
+
+            {/* Card 3 */}
+            <div className="bg-purple-50 ring-1 ring-purple-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <CheckCheck size={16} className="text-purple-600" />
+                </div>
+                <span className="text-sm font-black text-purple-700">الاشتراكات النشطة</span>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">عدد الاشتراكات النشطة</label>
+                <Input value={co.activeSubscriptions} onChange={e => setCo(p => ({ ...p, activeSubscriptions: e.target.value }))}
+                  placeholder="تلقائي" className="h-9 border-purple-200 bg-white text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">من إجمالي المشتركين</label>
+                <Input value={co.totalSubsCount} onChange={e => setCo(p => ({ ...p, totalSubsCount: e.target.value }))}
+                  placeholder="تلقائي" className="h-9 border-purple-200 bg-white text-sm" />
+              </div>
+            </div>
+
+            {/* Card 4 */}
+            <div className="bg-orange-50 ring-1 ring-orange-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <AlertCircle size={16} className="text-orange-500" />
+                </div>
+                <span className="text-sm font-black text-orange-600">رسوم مستحقة</span>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">عدد الرسوم المستحقة</label>
+                <Input value={co.pendingFees} onChange={e => setCo(p => ({ ...p, pendingFees: e.target.value }))}
+                  placeholder="تلقائي" className="h-9 border-orange-200 bg-white text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">عدد عمليات التنشيط</label>
+                <Input value={co.activationOps} onChange={e => setCo(p => ({ ...p, activationOps: e.target.value }))}
+                  placeholder="تلقائي" className="h-9 border-orange-200 bg-white text-sm" />
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={saveCards} className="bg-emerald-600 hover:bg-emerald-700 gap-1.5 px-6">
+              <Save size={14} /> حفظ تعديلات البطاقات
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── 6. النص المؤسسي ── */}
+      <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-amber-400 to-orange-400" />
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+            <Edit3 size={18} className="text-amber-500" /> النص المؤسسي الكبير
+          </CardTitle>
+          <CardDescription className="text-xs">
+            يظهر بشكل بارز أسفل البطاقات الأربع في {systemConfig.sectionNames.dashboard}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <textarea
+            value={instText}
+            onChange={e => setInstText(e.target.value)}
+            rows={4}
+            placeholder="أدخل نصاً مؤسسياً احترافياً يظهر أسفل البطاقات الرئيسية..."
+            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-base text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent transition-all"
+          />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-400">النص يدعم الأسطر المتعددة</p>
+            <div className="flex gap-2">
+              {instText && (
+                <Button variant="outline" onClick={() => { setInstText(''); onConfigChange({ institutionalText: '' }); }}
+                  className="border-slate-200 text-slate-500 gap-1.5">
+                  <X size={13} /> مسح النص
                 </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              )}
+              <Button onClick={saveText} className="bg-amber-500 hover:bg-amber-600 gap-1.5 px-6">
+                <Save size={14} /> حفظ النص
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// Admin Panel
+// Admin Panel — نظام الإستعلام عن الأرباح
 // ─────────────────────────────────────────────────────────────
 
 const OPS_PER_PAGE = 8;
 
-function AdminPanel({ subscribers, operations }: { subscribers: Subscriber[]; operations: Operation[] }) {
+function AdminPanel({ subscribers, operations, sectionName }: {
+  subscribers: Subscriber[];
+  operations: Operation[];
+  sectionName: string;
+}) {
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Subscriber | null>(null);
   const [searched, setSearched] = useState(false);
   const [opsPage, setOpsPage] = useState(1);
   const [showWallet, setShowWallet] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const handleSearch = () => {
+  const runSearch = () => {
     if (!query.trim()) return;
-    const q = query.trim().toLowerCase();
-    const res = subscribers.find(s =>
-      s.name.toLowerCase().includes(q) ||
-      s.iban.toLowerCase().includes(q) ||
-      s.phone.includes(q) ||
-      s.systemAccount.toLowerCase().includes(q) ||
-      s.walletAddress.toLowerCase().includes(q)
-    );
-    setFound(res ?? null);
-    setSearched(true);
+    // reset
+    setSearched(false);
+    setFound(null);
+    setIsSearching(true);
+    setProgress(0);
     setOpsPage(1);
     setShowWallet(false);
+
+    let p = 0;
+    intervalRef.current = setInterval(() => {
+      p += Math.random() * 18 + 7;
+      if (p >= 100) {
+        p = 100;
+        setProgress(100);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setTimeout(() => {
+          const q = query.trim().toLowerCase();
+          const res = subscribers.find(s =>
+            s.name.toLowerCase().includes(q) ||
+            s.iban.toLowerCase().includes(q) ||
+            s.phone.includes(q) ||
+            s.systemAccount.toLowerCase().includes(q) ||
+            s.walletAddress.toLowerCase().includes(q)
+          );
+          setFound(res ?? null);
+          setSearched(true);
+          setIsSearching(false);
+          setProgress(0);
+        }, 400);
+      } else {
+        setProgress(p);
+      }
+    }, 80);
   };
+
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
 
   const subscriberOps = useMemo(() => {
     if (!found) return [];
@@ -762,12 +1366,16 @@ function AdminPanel({ subscribers, operations }: { subscribers: Subscriber[]; op
   const totalOpsPages = Math.max(1, Math.ceil(subscriberOps.length / OPS_PER_PAGE));
   const pagedOps = subscriberOps.slice((opsPage - 1) * OPS_PER_PAGE, opsPage * OPS_PER_PAGE);
 
-  const clear = () => { setQuery(''); setFound(null); setSearched(false); setOpsPage(1); };
+  const clear = () => {
+    setQuery(''); setFound(null); setSearched(false); setOpsPage(1);
+    setIsSearching(false); setProgress(0);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  };
 
   return (
     <>
       <div>
-        <h2 className="text-2xl font-black text-slate-800">لوحة الأدمن</h2>
+        <h2 className="text-2xl font-black text-slate-800">{sectionName}</h2>
         <p className="text-sm text-slate-400 mt-0.5">البحث عن مشترك وعرض تفاصيله الكاملة</p>
       </div>
 
@@ -793,26 +1401,52 @@ function AdminPanel({ subscribers, operations }: { subscribers: Subscriber[]; op
                   className="bg-white/10 border-white/20 text-white placeholder:text-slate-500 pr-11 text-sm rounded-xl focus:bg-white/15 focus:border-emerald-400 transition-all h-12"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={e => e.key === 'Enter' && runSearch()}
+                  disabled={isSearching}
                 />
                 <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
               </div>
-              <Button onClick={handleSearch}
-                className="h-12 px-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all whitespace-nowrap">
-                استعلام الآن
+              <Button onClick={runSearch} disabled={isSearching}
+                className="h-12 px-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all whitespace-nowrap disabled:opacity-70">
+                {isSearching ? 'جاري البحث...' : 'استعلام الآن'}
               </Button>
-              {searched && (
+              {(searched || isSearching) && (
                 <Button variant="outline" onClick={clear}
                   className="h-12 border-white/20 text-white hover:bg-white/10 rounded-xl px-3">
                   <X size={17} />
                 </Button>
               )}
             </div>
+
+            {/* Progress Bar */}
+            <AnimatePresence>
+              {isSearching && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-slate-400">جارٍ البحث في قاعدة البيانات...</span>
+                    <span className="text-sm font-black text-emerald-400">{Math.round(progress)}%</span>
+                  </div>
+                  <div className="relative h-4 bg-white/10 rounded-full overflow-hidden">
+                    <motion.div
+                      className="absolute inset-y-0 right-0 bg-gradient-to-l from-emerald-400 to-teal-400 rounded-full"
+                      style={{ width: `${progress}%`, left: 'auto' }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.1, ease: 'linear' }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-l from-white/20 to-transparent rounded-full pointer-events-none" />
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-500 mt-1">
+                    <span>0%</span><span>100%</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="grid grid-cols-3 gap-3 mt-5">
               {[
-                { label: 'إجمالي المشتركين', value: subscribers.length,                                              icon: <Users size={13} /> },
-                { label: 'نشطون',             value: subscribers.filter(s => s.subscriberStatus === 'نشط').length,   icon: <CheckCircle2 size={13} /> },
-                { label: 'رسوم مستحقة',       value: subscribers.filter(s => s.systemFees > 0).length,              icon: <AlertCircle size={13} /> },
+                { label: 'إجمالي المشتركين', value: subscribers.length, icon: <Users size={13} /> },
+                { label: 'نشطون', value: subscribers.filter(s => s.subscriberStatus === 'نشط').length, icon: <CheckCircle2 size={13} /> },
+                { label: 'رسوم مستحقة', value: subscribers.filter(s => s.systemFees > 0).length, icon: <AlertCircle size={13} /> },
               ].map((item, i) => (
                 <div key={i} className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
                   <div className="flex items-center justify-center gap-1 text-slate-400 text-xs mb-1">{item.icon}{item.label}</div>
@@ -872,10 +1506,12 @@ function AdminPanel({ subscribers, operations }: { subscribers: Subscriber[]; op
                       </p>
                     )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {found.phone       && <MiniInfo icon={<Phone size={13} />}     label="الجوال"      value={found.phone} />}
-                      {found.iban        && <MiniInfo icon={<CreditCard size={13} />} label="الآيبان"    value={found.iban} mono />}
-                      {found.bankName    && <MiniInfo icon={<Building2 size={13} />}  label="البنك"       value={found.bankName} />}
+                      {found.phone && <MiniInfo icon={<Phone size={13} />} label="الجوال" value={found.phone} />}
+                      {found.iban && <MiniInfo icon={<CreditCard size={13} />} label="الآيبان" value={found.iban} mono />}
+                      {found.bankName && <MiniInfo icon={<Building2 size={13} />} label="البنك" value={found.bankName} />}
                       {found.systemAccount && <MiniInfo icon={<Database size={13} />} label="حساب النظام" value={found.systemAccount} mono />}
+                      {found.currency && <MiniInfo icon={<Globe size={13} />} label="العملة" value={found.currency} />}
+                      {found.platform && <MiniInfo icon={<Cpu size={13} />} label="المنصة" value={found.platform} />}
                     </div>
                   </div>
                 </div>
@@ -883,111 +1519,210 @@ function AdminPanel({ subscribers, operations }: { subscribers: Subscriber[]; op
                 {/* Financial */}
                 <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {found.subscriptionAmount > 0 && (
-                    <FinBox icon={<Wallet size={17} className="text-blue-500" />}    label="مبلغ الاشتراك" value={`${found.subscriptionAmount.toLocaleString()} ر.س`} bg="bg-blue-50"    ring="ring-blue-200"    color="text-blue-700" />
+                    <FinBox icon={<Wallet size={17} className="text-blue-500" />} label="مبلغ الاشتراك"
+                      value={`${found.subscriptionAmount.toLocaleString()} ر.س`} bg="bg-blue-50" ring="ring-blue-200" color="text-blue-700" />
                   )}
                   {found.profits > 0 && (
-                    <FinBox icon={<TrendingUp size={17} className="text-emerald-500" />} label="إجمالي الأرباح" value={`${found.profits.toLocaleString()} ر.س`} bg="bg-emerald-50" ring="ring-emerald-200" color="text-emerald-700" />
+                    <FinBox icon={<TrendingUp size={17} className="text-emerald-500" />} label="الأرباح"
+                      value={`${found.profits.toLocaleString()} ر.س`} bg="bg-emerald-50" ring="ring-emerald-200" color="text-emerald-700" />
                   )}
                   {found.systemFees > 0 && (
-                    <FinBox icon={<AlertTriangle size={17} className="text-orange-500" />} label="رسوم النظام" value={`${found.systemFees.toLocaleString()} ر.س`} bg="bg-orange-50" ring="ring-orange-200" color="text-orange-700"
-                      extra={<Button size="sm" className="mt-2 h-7 text-xs bg-orange-500 hover:bg-orange-600 w-full shadow-sm">تنشيط الآن</Button>} />
+                    <FinBox icon={<AlertCircle size={17} className="text-orange-500" />} label="رسوم النظام"
+                      value={`${found.systemFees.toLocaleString()} ر.س`} bg="bg-orange-50" ring="ring-orange-200" color="text-orange-600" />
                   )}
-                  <FinBox icon={<Activity size={17} className="text-purple-500" />} label="العمليات" value={`${subscriberOps.length} عملية`} bg="bg-purple-50" ring="ring-purple-200" color="text-purple-700" />
+                  {found.walletAddress && (
+                    <FinBox icon={<Hash size={17} className="text-purple-500" />} label="المحفظة الرقمية"
+                      value={showWallet ? found.walletAddress : `${found.walletAddress.slice(0, 12)}…`}
+                      bg="bg-purple-50" ring="ring-purple-200" color="text-purple-700"
+                      extra={
+                        <button onClick={() => setShowWallet(v => !v)}
+                          className="mt-1 flex items-center gap-1 text-xs text-purple-500 hover:text-purple-700 font-medium transition-colors">
+                          {showWallet ? <EyeOff size={11} /> : <Eye size={11} />}
+                          {showWallet ? 'إخفاء' : 'عرض الكامل'}
+                        </button>
+                      }
+                    />
+                  )}
                 </div>
 
-                {found.walletAddress && (
-                  <div className="mt-4 p-3 rounded-xl bg-slate-50 ring-1 ring-slate-200 flex items-center gap-3">
-                    <Hash size={15} className="text-slate-400 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-400 mb-0.5">المحفظة الرقمية</p>
-                      <p className={`text-xs font-mono text-slate-700 truncate transition-all ${showWallet ? '' : 'blur-[3px] select-none'}`}>
-                        {found.walletAddress}
-                      </p>
-                    </div>
-                    <button onClick={() => setShowWallet(v => !v)} className="text-slate-400 hover:text-slate-600 flex-shrink-0 p-1">
-                      {showWallet ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                )}
-
                 {found.notes && (
-                  <div className="mt-3 p-3 rounded-xl bg-yellow-50 ring-1 ring-yellow-200 text-sm text-slate-700">
-                    <span className="font-bold text-yellow-700">ملاحظة: </span>{found.notes}
+                  <div className="mt-4 p-3 rounded-xl bg-yellow-50 ring-1 ring-yellow-200 flex items-start gap-2">
+                    <AlertTriangle size={14} className="text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-slate-700">{found.notes}</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Operations Table */}
-            {subscriberOps.length > 0 && (
-              <Card className="border-none shadow-sm ring-1 ring-slate-200">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <CardTitle className="text-base font-black text-slate-800">آخر العمليات</CardTitle>
-                      <CardDescription className="text-xs">{subscriberOps.length} عملية مسجّلة</CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border text-xs">{subscriberOps.filter(o => o.status === 'مكتمل').length} مكتمل</Badge>
-                      {subscriberOps.filter(o => o.status === 'تنشيط النظام').length > 0 && (
-                        <Badge className="bg-red-100 text-red-700 border-red-200 border text-xs">{subscriberOps.filter(o => o.status === 'تنشيط النظام').length} تنشيط</Badge>
-                      )}
-                    </div>
+            {/* Operations for this subscriber */}
+            <Card className="border-none shadow-sm ring-1 ring-slate-200">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-black text-slate-800">سجل عمليات المشترك</CardTitle>
+                  <Badge className="bg-slate-100 text-slate-500 border-none text-xs">{subscriberOps.length} عملية</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {subscriberOps.length === 0 ? (
+                  <div className="py-10 text-center text-slate-400">
+                    <ClipboardList size={28} className="mx-auto mb-2 text-slate-300" />
+                    <p className="font-medium text-sm">لا توجد عمليات مسجّلة لهذا المشترك</p>
                   </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-slate-50 hover:bg-slate-50">
-                          {['#', 'العملية', 'المبلغ', 'التاريخ', 'الحالة'].map(h => (
-                            <TableHead key={h} className="text-slate-600 font-bold text-xs">{h}</TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pagedOps.map((op, i) => (
-                          <TableRow key={op.id} className="hover:bg-slate-50/80 transition-colors">
-                            <TableCell className="text-slate-400 text-xs">{(opsPage - 1) * OPS_PER_PAGE + i + 1}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                  op.status === 'مكتمل' ? 'bg-emerald-500' : op.status === 'تنشيط النظام' ? 'bg-red-500' : op.status === 'اشتراك جديد' ? 'bg-yellow-500' : 'bg-blue-500'
-                                }`} />
-                                <span className="text-sm font-medium text-slate-700">{op.operation}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className={`text-sm ${amountColor(op.status)}`}>{op.amount}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{op.date}</TableCell>
-                            <TableCell>{statusBadge(op.status)}</TableCell>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50 hover:bg-slate-50">
+                            {['#', 'العملية', 'المبلغ', 'التاريخ', 'الحالة'].map(h => (
+                              <TableHead key={h} className="text-slate-600 font-bold text-xs">{h}</TableHead>
+                            ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  {totalOpsPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
-                      <span className="text-xs text-slate-400">صفحة {opsPage} من {totalOpsPages}</span>
-                      <div className="flex gap-1.5">
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-slate-200" disabled={opsPage === 1} onClick={() => setOpsPage(p => p - 1)}><ChevronRight size={14} /></Button>
-                        {Array.from({ length: Math.min(totalOpsPages, 5) }, (_, i) => {
-                          const pg = opsPage <= 3 ? i + 1 : opsPage + i - 2;
-                          if (pg > totalOpsPages) return null;
-                          return (
-                            <Button key={pg} size="sm" className={`h-8 w-8 p-0 text-xs ${pg === opsPage ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`} onClick={() => setOpsPage(pg)}>{pg}</Button>
-                          );
-                        })}
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-slate-200" disabled={opsPage === totalOpsPages} onClick={() => setOpsPage(p => p + 1)}><ChevronLeft size={14} /></Button>
-                      </div>
+                        </TableHeader>
+                        <TableBody>
+                          {pagedOps.map((op, i) => (
+                            <TableRow key={op.id} className="hover:bg-slate-50/80">
+                              <TableCell className="text-slate-400 text-xs">{(opsPage - 1) * OPS_PER_PAGE + i + 1}</TableCell>
+                              <TableCell className="text-sm text-slate-600">{op.operation}</TableCell>
+                              <TableCell className={`text-sm ${amountColor(op.status)}`}>{op.amount}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{op.date}</TableCell>
+                              <TableCell>{statusBadge(op.status)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                    {totalOpsPages > 1 && (
+                      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+                        <span className="text-xs text-slate-400">صفحة {opsPage} من {totalOpsPages}</span>
+                        <div className="flex gap-1.5">
+                          <Button variant="outline" size="sm" className="h-8 px-3 border-slate-200 gap-1 text-xs"
+                            disabled={opsPage === 1} onClick={() => setOpsPage(p => p - 1)}>
+                            <ChevronRight size={13} /> السابق
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-8 px-3 border-slate-200 gap-1 text-xs"
+                            disabled={opsPage === totalOpsPages} onClick={() => setOpsPage(p => p + 1)}>
+                            التالي <ChevronLeft size={13} />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* All Operations Log */}
+            <AllOperationsLog operations={operations} />
           </motion.div>
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+function AllOperationsLog({ operations }: { operations: Operation[] }) {
+  const [page, setPage] = useState(1);
+  const [filterStatus, setFilterStatus] = useState('الكل');
+  const [search, setSearch] = useState('');
+  const PER_PAGE = 10;
+
+  const filtered = useMemo(() => {
+    let ops = [...operations];
+    if (filterStatus !== 'الكل') ops = ops.filter(o => o.status === filterStatus);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      ops = ops.filter(o => o.subscriberName.toLowerCase().includes(q) || o.operation.includes(q));
+    }
+    return ops;
+  }, [operations, filterStatus, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  return (
+    <Card className="border-none shadow-sm ring-1 ring-slate-200">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base font-black text-slate-800">سجل جميع العمليات</CardTitle>
+            <CardDescription className="text-xs">{operations.length} عملية مسجّلة في النظام</CardDescription>
+          </div>
+          <Badge className="bg-slate-100 text-slate-500 border-none text-xs">{filtered.length} عملية</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Input placeholder="بحث في العمليات..." className="h-9 pr-9 border-slate-200 text-sm"
+              value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+          </div>
+          <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setPage(1); }}>
+            <SelectTrigger className="w-full sm:w-44 h-9 border-slate-200 text-sm">
+              <Filter size={12} className="ml-1 text-slate-400" /><SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="الكل">جميع الحالات</SelectItem>
+              {OPERATION_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50 hover:bg-slate-50">
+                {['#', 'المشترك', 'العملية', 'المبلغ', 'التاريخ', 'الحالة'].map(h => (
+                  <TableHead key={h} className="text-slate-600 font-bold text-xs">{h}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paged.map((op, i) => (
+                <TableRow key={op.id} className="hover:bg-slate-50/80 transition-colors">
+                  <TableCell className="text-slate-400 text-xs">{(page - 1) * PER_PAGE + i + 1}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                        <User size={11} className="text-slate-500" />
+                      </div>
+                      <span className="text-sm font-bold text-slate-700">{op.subscriberName || '—'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-slate-600">{op.operation}</TableCell>
+                  <TableCell className={`text-sm ${amountColor(op.status)}`}>{op.amount}</TableCell>
+                  <TableCell className="text-xs text-slate-500">{op.date}</TableCell>
+                  <TableCell>{statusBadge(op.status)}</TableCell>
+                </TableRow>
+              ))}
+              {paged.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-slate-400">
+                    <ClipboardList size={26} className="mx-auto mb-2 text-slate-300" />
+                    <p className="text-sm">لا توجد عمليات مطابقة</p>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-slate-400">صفحة {page} من {totalPages}</span>
+            <div className="flex gap-1.5">
+              <Button variant="outline" size="sm" className="h-8 px-3 border-slate-200 gap-1 text-xs"
+                disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronRight size={13} /> السابق
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 px-3 border-slate-200 gap-1 text-xs"
+                disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                التالي <ChevronLeft size={13} />
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1026,10 +1761,11 @@ function FinBox({ icon, label, value, bg, ring, color, extra }: {
 
 const ADMIN_OPS_PER_PAGE = 12;
 
-function AddOperationsTab({ operations, onOperationsChange, subscriberNames }: {
+function AddOperationsTab({ operations, onOperationsChange, subscriberNames, sectionName }: {
   operations: Operation[];
   onOperationsChange: (o: Operation[]) => void;
   subscriberNames: string[];
+  sectionName: string;
 }) {
   const [form, setForm] = useState<Omit<Operation, 'id'>>({ ...EMPTY_OP });
   const [editId, setEditId] = useState<string | null>(null);
@@ -1071,7 +1807,7 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames }: {
     <>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-black text-slate-800">سجل العمليات</h2>
+          <h2 className="text-2xl font-black text-slate-800">{sectionName}</h2>
           <p className="text-sm text-slate-400 mt-0.5">{operations.length} عملية مسجّلة في النظام</p>
         </div>
         <Button onClick={openAdd} className="bg-emerald-600 hover:bg-emerald-700 gap-2 shadow-sm">
@@ -1079,7 +1815,6 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames }: {
         </Button>
       </div>
 
-      {/* Filters */}
       <Card className="border-none shadow-sm ring-1 ring-slate-200">
         <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -1099,7 +1834,6 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames }: {
         </CardContent>
       </Card>
 
-      {/* Table */}
       <Card className="border-none shadow-sm ring-1 ring-slate-200">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -1150,10 +1884,12 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames }: {
             <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
               <span className="text-xs text-slate-400">صفحة {page} من {totalPages} · {filtered.length} عملية</span>
               <div className="flex gap-1.5">
-                <Button variant="outline" size="sm" className="h-8 px-3 border-slate-200 gap-1 text-xs" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                <Button variant="outline" size="sm" className="h-8 px-3 border-slate-200 gap-1 text-xs"
+                  disabled={page === 1} onClick={() => setPage(p => p - 1)}>
                   <ChevronRight size={13} /> السابق
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 px-3 border-slate-200 gap-1 text-xs" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                <Button variant="outline" size="sm" className="h-8 px-3 border-slate-200 gap-1 text-xs"
+                  disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
                   التالي <ChevronLeft size={13} />
                 </Button>
               </div>
@@ -1162,7 +1898,6 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames }: {
         </CardContent>
       </Card>
 
-      {/* Modal */}
       <AnimatePresence>
         {isOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1245,9 +1980,10 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames }: {
 
 const SUBS_PER_PAGE = 10;
 
-function AddSubscriberTab({ subscribers, onSubscribersChange }: {
+function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName }: {
   subscribers: Subscriber[];
   onSubscribersChange: (s: Subscriber[]) => void;
+  sectionName: string;
 }) {
   const [form, setForm] = useState<Omit<Subscriber, 'id'>>({ ...EMPTY_SUB });
   const [editId, setEditId] = useState<string | null>(null);
@@ -1257,6 +1993,47 @@ function AddSubscriberTab({ subscribers, onSubscribersChange }: {
   const [customBank, setCustomBank] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [platformSearch, setPlatformSearch] = useState('');
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [platformOpen, setPlatformOpen] = useState(false);
+  const currencyRef = useRef<HTMLDivElement>(null);
+  const platformRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (currencyRef.current && !currencyRef.current.contains(e.target as Node)) setCurrencyOpen(false);
+      if (platformRef.current && !platformRef.current.contains(e.target as Node)) setPlatformOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filteredCurrencies = useMemo(() => {
+    if (!currencySearch.trim()) return WORLD_CURRENCIES;
+    const q = currencySearch.toLowerCase();
+    return WORLD_CURRENCIES.filter(c =>
+      c.code.toLowerCase().includes(q) ||
+      c.nameAr.includes(q) ||
+      c.nameEn.toLowerCase().includes(q) ||
+      c.countryAr.includes(q) ||
+      c.countryEn.toLowerCase().includes(q) ||
+      c.symbol.includes(q)
+    );
+  }, [currencySearch]);
+
+  const filteredPlatforms = useMemo(() => {
+    if (!platformSearch.trim()) return TRADING_PLATFORMS;
+    const q = platformSearch.toLowerCase();
+    return TRADING_PLATFORMS.filter(p => p.name.toLowerCase().includes(q) || p.type.includes(q));
+  }, [platformSearch]);
+
+  const cryptoPlatforms = filteredPlatforms.filter(p => p.type === 'crypto');
+  const forexPlatforms = filteredPlatforms.filter(p => p.type === 'forex');
+
+  const selectedCurrency = WORLD_CURRENCIES.find(c => c.code === form.currency);
+  const selectedPlatform = TRADING_PLATFORMS.find(p => p.name === form.platform);
 
   const filtered = useMemo(() => {
     if (!searchSub.trim()) return subscribers;
@@ -1302,7 +2079,7 @@ function AddSubscriberTab({ subscribers, onSubscribersChange }: {
     <>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-black text-slate-800">{editId ? 'تعديل مشترك' : 'إضافة مشترك جديد'}</h2>
+          <h2 className="text-2xl font-black text-slate-800">{editId ? 'تعديل مشترك' : sectionName}</h2>
           <p className="text-sm text-slate-400 mt-0.5">{subscribers.length} مشترك مسجّل</p>
         </div>
         {editId && (
@@ -1323,15 +2100,15 @@ function AddSubscriberTab({ subscribers, onSubscribersChange }: {
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <FField label="اسم المشترك"            icon={<User size={12} />}        value={f.name}               onChange={v => set('name', v)}               placeholder="الاسم الكامل" />
-            <FField label="رقم الهاتف"             icon={<Phone size={12} />}       value={f.phone}              onChange={v => set('phone', v)}              placeholder="05xxxxxxxx" />
-            <FField label="رقم الآيبان (IBAN)"     icon={<CreditCard size={12} />}  value={f.iban}               onChange={v => set('iban', v)}               placeholder="SAxx xxxx xxxx" mono />
-            <FField label="مبلغ الاشتراك (ر.س)"    icon={<Wallet size={12} />}      type="number" value={f.subscriptionAmount === 0 ? '' : String(f.subscriptionAmount)} onChange={v => set('subscriptionAmount', Number(v))} placeholder="0" />
-            <FField label="الأرباح (ر.س)"           icon={<TrendingUp size={12} />}  type="number" value={f.profits === 0 ? '' : String(f.profits)}             onChange={v => set('profits', Number(v))} placeholder="0" />
-            <FField label="رسوم النظام (ر.س)"       icon={<AlertCircle size={12} />} type="number" value={f.systemFees === 0 ? '' : String(f.systemFees)}       onChange={v => set('systemFees', Number(v))} placeholder="0" />
-            <FField label="حساب النظام"             icon={<Building2 size={12} />}   value={f.systemAccount}      onChange={v => set('systemAccount', v)}      placeholder="SYS-000000" mono />
-            <FField label="عنوان المحفظة الرقمية"   icon={<Hash size={12} />}        value={f.walletAddress}      onChange={v => set('walletAddress', v)}      placeholder="0x..." mono />
-            <FField label="تاريخ الانضمام"          icon={<Calendar size={12} />}    type="date" value={f.joinDate} onChange={v => set('joinDate', v)} />
+            <FField label="اسم المشترك" icon={<User size={12} />} value={f.name} onChange={v => set('name', v)} placeholder="الاسم الكامل" />
+            <FField label="رقم الهاتف" icon={<Phone size={12} />} value={f.phone} onChange={v => set('phone', v)} placeholder="05xxxxxxxx" />
+            <FField label="رقم الآيبان (IBAN)" icon={<CreditCard size={12} />} value={f.iban} onChange={v => set('iban', v)} placeholder="SAxx xxxx xxxx" mono />
+            <FField label="مبلغ الاشتراك (ر.س)" icon={<Wallet size={12} />} type="number" value={f.subscriptionAmount === 0 ? '' : String(f.subscriptionAmount)} onChange={v => set('subscriptionAmount', Number(v))} placeholder="0" />
+            <FField label="الأرباح (ر.س)" icon={<TrendingUp size={12} />} type="number" value={f.profits === 0 ? '' : String(f.profits)} onChange={v => set('profits', Number(v))} placeholder="0" />
+            <FField label="رسوم النظام (ر.س)" icon={<AlertCircle size={12} />} type="number" value={f.systemFees === 0 ? '' : String(f.systemFees)} onChange={v => set('systemFees', Number(v))} placeholder="0" />
+            <FField label="حساب النظام" icon={<Building2 size={12} />} value={f.systemAccount} onChange={v => set('systemAccount', v)} placeholder="SYS-000000" mono />
+            <FField label="عنوان المحفظة الرقمية" icon={<Hash size={12} />} value={f.walletAddress} onChange={v => set('walletAddress', v)} placeholder="0x..." mono />
+            <FField label="تاريخ الانضمام" icon={<Calendar size={12} />} type="date" value={f.joinDate} onChange={v => set('joinDate', v)} />
           </div>
 
           {/* Status & Bank */}
@@ -1369,6 +2146,129 @@ function AddSubscriberTab({ subscribers, onSubscribersChange }: {
                   </SelectContent>
                 </Select>
               )}
+            </div>
+          </div>
+
+          {/* Currency & Platform */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            {/* Currency */}
+            <div ref={currencyRef} className="relative">
+              <label className="text-xs font-bold text-slate-500 mb-1.5 flex items-center gap-1"><Globe size={11} />العملة</label>
+              <button type="button" onClick={() => { setCurrencyOpen(v => !v); setPlatformOpen(false); }}
+                className="w-full h-10 border border-slate-200 rounded-md bg-white px-3 flex items-center justify-between text-sm hover:border-slate-300 transition-colors">
+                {selectedCurrency ? (
+                  <span className="flex items-center gap-2">
+                    <span className="text-base font-bold text-emerald-600">{selectedCurrency.symbol}</span>
+                    <span className="font-medium">{selectedCurrency.code}</span>
+                    <span className="text-slate-400 text-xs">— {selectedCurrency.nameAr}</span>
+                  </span>
+                ) : <span className="text-slate-400">اختر العملة</span>}
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${currencyOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {currencyOpen && (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                    className="absolute top-full mt-1 right-0 left-0 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <div className="p-2 border-b border-slate-100">
+                      <div className="relative">
+                        <Input value={currencySearch} onChange={e => setCurrencySearch(e.target.value)}
+                          placeholder="بحث بالاسم أو الرمز أو الكود..." className="h-9 pr-8 border-slate-200 text-sm" />
+                        <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                      </div>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {filteredCurrencies.length === 0 ? (
+                        <div className="py-6 text-center text-slate-400 text-sm">لا توجد نتائج</div>
+                      ) : filteredCurrencies.map(c => (
+                        <button key={c.code} type="button"
+                          onClick={() => { set('currency', c.code); setCurrencyOpen(false); setCurrencySearch(''); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors text-right ${f.currency === c.code ? 'bg-emerald-50' : ''}`}>
+                          <span className="text-lg font-bold text-emerald-600 w-8 text-center flex-shrink-0">{c.symbol}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-black text-slate-800">{c.code}</span>
+                              <span className="text-sm text-slate-600">{c.nameAr}</span>
+                            </div>
+                            <p className="text-xs text-slate-400">{c.countryAr} · {c.countryEn}</p>
+                          </div>
+                          {f.currency === c.code && <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                    {f.currency && (
+                      <div className="p-2 border-t border-slate-100">
+                        <button type="button" onClick={() => { set('currency', ''); setCurrencyOpen(false); }}
+                          className="w-full text-xs text-slate-500 hover:text-red-500 py-1.5 transition-colors">مسح الاختيار</button>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Platform */}
+            <div ref={platformRef} className="relative">
+              <label className="text-xs font-bold text-slate-500 mb-1.5 flex items-center gap-1"><Cpu size={11} />المنصة</label>
+              <button type="button" onClick={() => { setPlatformOpen(v => !v); setCurrencyOpen(false); }}
+                className="w-full h-10 border border-slate-200 rounded-md bg-white px-3 flex items-center justify-between text-sm hover:border-slate-300 transition-colors">
+                {selectedPlatform ? (
+                  <span className="flex items-center gap-2">
+                    <span className={`${selectedPlatform.color} text-white text-xs font-black px-1.5 py-0.5 rounded flex-shrink-0`}>{selectedPlatform.abbr}</span>
+                    <span className="font-medium">{selectedPlatform.name}</span>
+                    <Badge className={`text-xs border-none ${selectedPlatform.type === 'crypto' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {selectedPlatform.type === 'crypto' ? 'كريبتو' : 'فوركس'}
+                    </Badge>
+                  </span>
+                ) : <span className="text-slate-400">اختر المنصة</span>}
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${platformOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {platformOpen && (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                    className="absolute top-full mt-1 right-0 left-0 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <div className="p-2 border-b border-slate-100">
+                      <div className="relative">
+                        <Input value={platformSearch} onChange={e => setPlatformSearch(e.target.value)}
+                          placeholder="بحث في المنصات..." className="h-9 pr-8 border-slate-200 text-sm" />
+                        <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                      </div>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {cryptoPlatforms.length > 0 && (
+                        <>
+                          <div className="px-3 py-1.5 bg-yellow-50 border-b border-yellow-100">
+                            <span className="text-xs font-black text-yellow-700">🔷 منصات الكريبتو ({cryptoPlatforms.length})</span>
+                          </div>
+                          {cryptoPlatforms.map(p => (
+                            <PlatformItem key={p.name} platform={p} selected={f.platform === p.name}
+                              onClick={() => { set('platform', p.name); setPlatformOpen(false); setPlatformSearch(''); }} />
+                          ))}
+                        </>
+                      )}
+                      {forexPlatforms.length > 0 && (
+                        <>
+                          <div className="px-3 py-1.5 bg-blue-50 border-b border-blue-100 border-t border-t-slate-100">
+                            <span className="text-xs font-black text-blue-700">📊 منصات الفوركس ({forexPlatforms.length})</span>
+                          </div>
+                          {forexPlatforms.map(p => (
+                            <PlatformItem key={p.name} platform={p} selected={f.platform === p.name}
+                              onClick={() => { set('platform', p.name); setPlatformOpen(false); setPlatformSearch(''); }} />
+                          ))}
+                        </>
+                      )}
+                      {cryptoPlatforms.length === 0 && forexPlatforms.length === 0 && (
+                        <div className="py-6 text-center text-slate-400 text-sm">لا توجد نتائج</div>
+                      )}
+                    </div>
+                    {f.platform && (
+                      <div className="p-2 border-t border-slate-100">
+                        <button type="button" onClick={() => { set('platform', ''); setPlatformOpen(false); }}
+                          className="w-full text-xs text-slate-500 hover:text-red-500 py-1.5 transition-colors">مسح الاختيار</button>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -1454,7 +2354,6 @@ function AddSubscriberTab({ subscribers, onSubscribersChange }: {
         </CardContent>
       </Card>
 
-      {/* Delete confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
@@ -1468,6 +2367,19 @@ function AddSubscriberTab({ subscribers, onSubscribersChange }: {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function PlatformItem({ platform, selected, onClick }: { platform: TradingPlatform; selected: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors ${selected ? 'bg-blue-50' : ''}`}>
+      <span className={`${platform.color} text-white text-xs font-black px-1.5 py-0.5 rounded min-w-[36px] text-center flex-shrink-0`}>
+        {platform.abbr}
+      </span>
+      <span className="flex-1 text-sm font-medium text-slate-700 text-right">{platform.name}</span>
+      {selected && <CheckCircle2 size={14} className="text-blue-500 flex-shrink-0" />}
+    </button>
   );
 }
 
@@ -1494,6 +2406,8 @@ function SubRow({ sub, expanded, onToggle, onEdit, onDelete }: {
             {sub.phone && <span className="text-xs text-slate-400">{sub.phone}</span>}
             {sub.bankName && <span className="text-xs text-slate-400 hidden sm:inline">· {sub.bankName}</span>}
             {sub.subscriptionAmount > 0 && <span className="text-xs font-bold text-emerald-600 hidden sm:inline">· {sub.subscriptionAmount.toLocaleString()} ر.س</span>}
+            {sub.currency && <span className="text-xs text-blue-500 font-bold hidden sm:inline">· {sub.currency}</span>}
+            {sub.platform && <span className="text-xs text-purple-500 font-medium hidden lg:inline">· {sub.platform}</span>}
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -1506,15 +2420,17 @@ function SubRow({ sub, expanded, onToggle, onEdit, onDelete }: {
         {expanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="px-5 pb-4 pt-3 border-t border-slate-100">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-                {sub.iban               && <Chip icon={<CreditCard size={12} />} label="آيبان"         value={sub.iban} mono />}
-                {sub.subscriptionAmount > 0 && <Chip icon={<Wallet size={12} />}    label="الاشتراك"    value={`${sub.subscriptionAmount.toLocaleString()} ر.س`} />}
-                {sub.profits > 0           && <Chip icon={<TrendingUp size={12} />} label="الأرباح"     value={`${sub.profits.toLocaleString()} ر.س`} green />}
-                {sub.systemFees > 0        && <Chip icon={<AlertCircle size={12} />} label="رسوم النظام" value={`${sub.systemFees.toLocaleString()} ر.س`} orange />}
-                {sub.systemAccount         && <Chip icon={<Building2 size={12} />} label="حساب النظام"  value={sub.systemAccount} mono />}
-                {sub.bankName              && <Chip icon={<Banknote size={12} />}  label="البنك"        value={sub.bankName} />}
-                {sub.joinDate              && <Chip icon={<Calendar size={12} />}  label="الانضمام"     value={sub.joinDate} />}
-                {sub.walletAddress         && <Chip icon={<Hash size={12} />}      label="المحفظة"      value={`${sub.walletAddress.slice(0, 12)}…`} mono />}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                {sub.iban && <Chip icon={<CreditCard size={12} />} label="آيبان" value={sub.iban} mono />}
+                {sub.subscriptionAmount > 0 && <Chip icon={<Wallet size={12} />} label="الاشتراك" value={`${sub.subscriptionAmount.toLocaleString()} ر.س`} />}
+                {sub.profits > 0 && <Chip icon={<TrendingUp size={12} />} label="الأرباح" value={`${sub.profits.toLocaleString()} ر.س`} green />}
+                {sub.systemFees > 0 && <Chip icon={<AlertCircle size={12} />} label="رسوم النظام" value={`${sub.systemFees.toLocaleString()} ر.س`} orange />}
+                {sub.systemAccount && <Chip icon={<Building2 size={12} />} label="حساب النظام" value={sub.systemAccount} mono />}
+                {sub.bankName && <Chip icon={<Banknote size={12} />} label="البنك" value={sub.bankName} />}
+                {sub.joinDate && <Chip icon={<Calendar size={12} />} label="الانضمام" value={sub.joinDate} />}
+                {sub.walletAddress && <Chip icon={<Hash size={12} />} label="المحفظة" value={`${sub.walletAddress.slice(0, 12)}…`} mono />}
+                {sub.currency && <Chip icon={<Globe size={12} />} label="العملة" value={sub.currency} />}
+                {sub.platform && <Chip icon={<Cpu size={12} />} label="المنصة" value={sub.platform} />}
               </div>
               {sub.notes && (
                 <div className="mt-3 p-2.5 rounded-lg bg-yellow-50 ring-1 ring-yellow-200 text-xs text-slate-600">
