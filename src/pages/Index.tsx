@@ -12,7 +12,8 @@ import {
   ArrowUpRight, ArrowDownRight, Clock, RefreshCw, Download, Filter,
   Eye, EyeOff, AlertTriangle, CheckCheck, Lock, Database, Calendar,
   FileText, Banknote, Star, PanelLeftClose, PanelLeftOpen, SlidersHorizontal,
-  Globe, Cpu, BarChart3, Edit3, Type, CalendarClock,
+  Globe, Cpu, BarChart3, Edit3, Type, CalendarClock, Sparkles, Zap, Layers,
+  Crown, Rocket, TrendingDown, DollarSign, PieChart as PieChartIcon, LineChart,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -578,7 +579,7 @@ const EMPTY_OP: Omit<Operation, 'id'> = {
 // Root
 // ─────────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'admin' | 'addOperations' | 'addSubscriber' | 'systemAdmin';
+type Tab = 'dashboard' | 'admin' | 'addOperations' | 'addSubscriber' | 'systemAdmin' | 'advanced';
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -615,6 +616,8 @@ export default function Index() {
     { tab: 'addOperations', icon: <ClipboardList size={20} />, label: sn.addOperations },
     { tab: 'addSubscriber', icon: <UserPlus size={20} />, label: sn.addSubscriber },
   ];
+
+  const isAdvanced = activeTab === 'advanced';
 
   const systemDisplayDate = systemConfig.systemDate
     || new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -683,6 +686,58 @@ export default function Index() {
               )}
             </button>
           ))}
+
+          {/* ── فاصل قسم النظام المتقدم ── */}
+          <div className="pt-2 pb-1">
+            <div className="h-px bg-gradient-to-l from-transparent via-amber-500/40 to-transparent" />
+            <AnimatePresence>
+              {!sidebarCollapsed && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 px-1 pt-2 pb-1">
+                  <Sparkles size={10} className="text-amber-400" />
+                  <span className="text-xs font-black text-amber-400/80 tracking-widest uppercase">المتقدم</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* ── زر النظام المتقدم ── */}
+          <button onClick={() => setActiveTab('advanced')}
+            title={sidebarCollapsed ? 'النظام المتقدم' : undefined}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden ${
+              activeTab === 'advanced'
+                ? 'text-amber-300 border border-amber-500/40 shadow-lg shadow-amber-500/10'
+                : 'text-amber-400/70 hover:text-amber-300'
+            } ${sidebarCollapsed ? 'justify-center' : ''}`}
+            style={activeTab === 'advanced'
+              ? { background: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(168,85,247,0.15) 100%)' }
+              : { background: 'transparent' }
+            }>
+            {/* خلفية متحركة عند التحديد */}
+            {activeTab !== 'advanced' && (
+              <span className="absolute inset-0 rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"
+                style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(168,85,247,0.08) 100%)' }} />
+            )}
+            <span className="flex-shrink-0 relative">
+              <Crown size={20} className={activeTab === 'advanced' ? 'text-amber-400' : ''} />
+              {activeTab !== 'advanced' && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+              )}
+            </span>
+            <AnimatePresence>
+              {!sidebarCollapsed && (
+                <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                  className="flex-1 text-right flex items-center gap-2">
+                  <span className="truncate text-sm font-bold">النظام المتقدم</span>
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">PRO</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {!sidebarCollapsed && activeTab === 'advanced' && (
+              <ChevronLeft size={13} className="flex-shrink-0 opacity-60 text-amber-400" />
+            )}
+          </button>
+
           <Separator className="my-2 bg-white/10" />
           <button title={sidebarCollapsed ? 'الإعدادات' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-white/5 hover:text-white transition-all ${sidebarCollapsed ? 'justify-center' : ''}`}>
@@ -800,6 +855,19 @@ export default function Index() {
             <motion.div key="addSub" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
               <AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} sectionName={sn.addSubscriber} />
+            </motion.div>
+          )}
+          {activeTab === 'advanced' && (
+            <motion.div key="advanced" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="w-full">
+              <AdvancedSystemTab
+                subscribers={subscribers}
+                operations={operations}
+                stats={liveStats}
+                systemConfig={systemConfig}
+                onOperationsChange={setOperations}
+                onSubscribersChange={setSubscribers}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -2471,5 +2539,991 @@ function Chip({ icon, label, value, mono = false, green = false, orange = false 
       <div className="flex items-center gap-1 text-slate-400">{icon}<span className="text-xs">{label}</span></div>
       <p className={`text-xs font-bold break-all leading-tight ${mono ? 'font-mono' : ''} ${green ? 'text-emerald-600' : orange ? 'text-orange-600' : 'text-slate-700'}`}>{value}</p>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// AdvancedSystemTab — النظام المتقدم بصرياً
+// ─────────────────────────────────────────────────────────────
+
+type AdvancedSubTab = 'dashboard' | 'admin' | 'operations' | 'subscribers';
+
+function AdvancedSystemTab({
+  subscribers, operations, stats, systemConfig, onOperationsChange, onSubscribersChange,
+}: {
+  subscribers: Subscriber[];
+  operations: Operation[];
+  stats: LiveStats;
+  systemConfig: SystemConfig;
+  onOperationsChange: (o: Operation[]) => void;
+  onSubscribersChange: (s: Subscriber[]) => void;
+}) {
+  const [subTab, setSubTab] = useState<AdvancedSubTab>('dashboard');
+
+  const subTabs: { id: AdvancedSubTab; label: string; icon: React.ReactNode; color: string }[] = [
+    { id: 'dashboard', label: 'لوحة التحكم', icon: <LayoutDashboard size={16} />, color: 'from-blue-500 to-cyan-500' },
+    { id: 'admin', label: 'الاستعلام', icon: <Search size={16} />, color: 'from-emerald-500 to-teal-500' },
+    { id: 'operations', label: 'العمليات', icon: <ClipboardList size={16} />, color: 'from-violet-500 to-purple-500' },
+    { id: 'subscribers', label: 'المشتركون', icon: <Users size={16} />, color: 'from-amber-500 to-orange-500' },
+  ];
+
+  return (
+    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #0f0c29 0%, #1a1a3e 40%, #24243e 100%)' }}>
+
+      {/* ── Hero Banner ── */}
+      <div className="relative overflow-hidden px-4 lg:px-10 pt-8 pb-6">
+        {/* خلفية جمالية */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-1/4 w-96 h-96 rounded-full blur-3xl opacity-20"
+            style={{ background: 'radial-gradient(circle, #f59e0b, transparent)' }} />
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-15"
+            style={{ background: 'radial-gradient(circle, #8b5cf6, transparent)' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-3xl opacity-10"
+            style={{ background: 'radial-gradient(circle, #06b6d4, transparent)' }} />
+        </div>
+
+        <div className="relative z-10 max-w-[1600px] mx-auto">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+
+            {/* الشعار والعنوان */}
+            <div className="flex items-center gap-4">
+              <motion.div
+                animate={{ rotate: [0, 5, -5, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                <Crown size={30} className="text-white" />
+              </motion.div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h1 className="text-2xl lg:text-3xl font-black text-white">النظام المتقدم</h1>
+                  <span className="text-xs font-black px-2 py-1 rounded-full border text-amber-300 border-amber-500/50"
+                    style={{ background: 'rgba(245,158,11,0.15)' }}>PRO</span>
+                </div>
+                <p className="text-slate-400 text-sm">نسخة احترافية محسّنة بصرياً — جميع البيانات مشتركة مع النظام الأصلي</p>
+              </div>
+            </div>
+
+            {/* KPIs سريعة في الهيدر */}
+            <div className="lg:mr-auto flex items-center gap-3 flex-wrap">
+              {[
+                { label: 'مشترك', value: subscribers.length, icon: <Users size={14} />, color: '#3b82f6' },
+                { label: 'عملية', value: operations.length, icon: <Activity size={14} />, color: '#10b981' },
+                { label: 'نشط', value: subscribers.filter(s => s.subscriberStatus === 'نشط').length, icon: <CheckCircle2 size={14} />, color: '#8b5cf6' },
+                { label: 'معلق', value: operations.filter(o => o.status === 'قيد المعالجة').length, icon: <Clock size={14} />, color: '#f59e0b' },
+              ].map((kpi, i) => (
+                <motion.div key={i} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border"
+                  style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}>
+                  <span style={{ color: kpi.color }}>{kpi.icon}</span>
+                  <span className="text-xl font-black text-white">{kpi.value}</span>
+                  <span className="text-slate-400 text-xs">{kpi.label}</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── تبويبات داخلية ── */}
+          <div className="mt-8 flex items-center gap-2 overflow-x-auto pb-1">
+            {subTabs.map(tab => (
+              <button key={tab.id} onClick={() => setSubTab(tab.id)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                  subTab === tab.id
+                    ? 'text-white shadow-lg scale-105'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                style={subTab === tab.id
+                  ? { background: `linear-gradient(135deg, ${tab.color.replace('from-', '').split(' ')[0].replace('from-', '')})`, boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }
+                  : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }
+                }>
+                {tab.icon}
+                {tab.label}
+                {subTab === tab.id && (
+                  <motion.span layoutId="adv-tab-indicator"
+                    className="w-1.5 h-1.5 rounded-full bg-white" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── محتوى التبويب ── */}
+      <div className="px-4 lg:px-10 pb-10 max-w-[1600px] mx-auto">
+        <AnimatePresence mode="wait">
+          {subTab === 'dashboard' && (
+            <motion.div key="adv-dash" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="space-y-6 pt-6">
+              <AdvancedDashboard subscribers={subscribers} operations={operations} stats={stats} />
+            </motion.div>
+          )}
+          {subTab === 'admin' && (
+            <motion.div key="adv-admin" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="space-y-6 pt-6">
+              <AdvancedAdminPanel subscribers={subscribers} operations={operations} />
+            </motion.div>
+          )}
+          {subTab === 'operations' && (
+            <motion.div key="adv-ops" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="space-y-6 pt-6">
+              <AdvancedOperations operations={operations} onOperationsChange={onOperationsChange} subscriberNames={subscribers.map(s => s.name)} />
+            </motion.div>
+          )}
+          {subTab === 'subscribers' && (
+            <motion.div key="adv-subs" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="space-y-6 pt-6">
+              <AdvancedSubscribers subscribers={subscribers} operations={operations} onSubscribersChange={onSubscribersChange} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+// ── الداشبورد المتقدم ──
+function AdvancedDashboard({ subscribers, operations, stats }: { subscribers: Subscriber[]; operations: Operation[]; stats: LiveStats }) {
+  const completedOps = operations.filter(o => o.status === 'مكتمل').length;
+  const pendingOps = operations.filter(o => o.status === 'قيد المعالجة').length;
+  const activationOps = operations.filter(o => o.status === 'تنشيط النظام').length;
+  const activeSubscribers = subscribers.filter(s => s.subscriberStatus === 'نشط').length;
+  const totalFees = subscribers.reduce((a, s) => a + s.systemFees, 0);
+  const avgSubscription = subscribers.length ? Math.round(subscribers.reduce((a, s) => a + s.subscriptionAmount, 0) / subscribers.length) : 0;
+
+  const glowCards = [
+    {
+      title: 'إجمالي المشتركين', value: stats.totalSubscribers, sub: `نشط: ${activeSubscribers}`,
+      icon: <Users size={24} />, gradient: 'from-blue-600 to-cyan-500', glow: 'rgba(59,130,246,0.4)',
+      trend: '+12%', up: true,
+    },
+    {
+      title: 'إجمالي الأرباح', value: stats.totalProfits, sub: `${completedOps} عملية مكتملة`,
+      icon: <TrendingUp size={24} />, gradient: 'from-emerald-500 to-teal-400', glow: 'rgba(16,185,129,0.4)',
+      trend: '+8.3%', up: true,
+    },
+    {
+      title: 'الاشتراكات النشطة', value: stats.activeSubscriptions, sub: `من ${stats.totalSubsCount} مشترك`,
+      icon: <CheckCheck size={24} />, gradient: 'from-violet-600 to-purple-500', glow: 'rgba(139,92,246,0.4)',
+      trend: '+5.1%', up: true,
+    },
+    {
+      title: 'رسوم مستحقة', value: stats.pendingRequests, sub: `${stats.activationOpsStr} تنشيط`,
+      icon: <AlertCircle size={24} />, gradient: 'from-amber-500 to-orange-400', glow: 'rgba(245,158,11,0.4)',
+      trend: '-2.4%', up: false,
+    },
+  ];
+
+  const pieData = [
+    { name: 'نشط', value: subscribers.filter(s => s.subscriberStatus === 'نشط').length, color: '#10b981' },
+    { name: 'جديد', value: subscribers.filter(s => s.subscriberStatus === 'مشترك جديد').length, color: '#3b82f6' },
+    { name: 'رسوم', value: subscribers.filter(s => s.subscriberStatus === 'رسوم مستحقة').length, color: '#f59e0b' },
+    { name: 'أرباح', value: subscribers.filter(s => s.subscriberStatus === 'توزيع أرباح').length, color: '#8b5cf6' },
+    { name: 'معلق', value: subscribers.filter(s => s.subscriberStatus === 'معلق').length, color: '#64748b' },
+  ].filter(d => d.value > 0);
+
+  return (
+    <>
+      {/* بطاقات الإحصائيات المضيئة */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {glowCards.map((card, i) => (
+          <motion.div key={i}
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+            whileHover={{ y: -4, scale: 1.02 }}
+            className="relative rounded-2xl p-5 overflow-hidden cursor-default"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: `0 0 30px ${card.glow}` }}>
+            {/* توهج خلفي */}
+            <div className="absolute inset-0 opacity-10 rounded-2xl"
+              style={{ background: `linear-gradient(135deg, ${card.glow}, transparent)` }} />
+            {/* أيقونة بتدرج */}
+            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.gradient} flex items-center justify-center text-white mb-4 shadow-lg`}>
+              {card.icon}
+            </div>
+            <p className="text-slate-400 text-xs font-medium mb-1">{card.title}</p>
+            <h3 className="text-2xl font-black text-white mb-1">{card.value}</h3>
+            <div className="flex items-center justify-between">
+              <p className="text-slate-500 text-xs">{card.sub}</p>
+              <span className={`text-xs font-bold flex items-center gap-0.5 ${card.up ? 'text-emerald-400' : 'text-red-400'}`}>
+                {card.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}{card.trend}
+              </span>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* ثانياً: إضافية KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'متوسط الاشتراك', value: `${avgSubscription.toLocaleString()} ر.س`, icon: <DollarSign size={14} />, color: '#3b82f6' },
+          { label: 'إجمالي الرسوم', value: `${totalFees.toLocaleString()} ر.س`, icon: <AlertCircle size={14} />, color: '#f59e0b' },
+          { label: 'عمليات معلقة', value: pendingOps, icon: <Clock size={14} />, color: '#8b5cf6' },
+          { label: 'عمليات تنشيط', value: activationOps, icon: <Zap size={14} />, color: '#ef4444' },
+        ].map((item, i) => (
+          <div key={i} className="rounded-xl px-4 py-3 flex items-center gap-3"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: `${item.color}22`, border: `1px solid ${item.color}44` }}>
+              <span style={{ color: item.color }}>{item.icon}</span>
+            </div>
+            <div>
+              <p className="text-slate-500 text-xs">{item.label}</p>
+              <p className="text-white font-black text-sm">{item.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* الرسوم البيانية */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* مخطط الأرباح */}
+        <div className="lg:col-span-2 rounded-2xl p-5 overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-white font-black">نمو الأرباح الشهرية</h3>
+              <p className="text-slate-500 text-xs mt-0.5">المقارنة مع الهدف المخطط</p>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+              style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-emerald-400 text-xs font-bold">مباشر</span>
+            </div>
+          </div>
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={CHART_DATA} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="advGVal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="advGTgt" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.06)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  contentStyle={{ background: '#1e1b4b', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+                  formatter={(v: number, name: string) => [`${v.toLocaleString()} ر.س`, name === 'value' ? 'الأرباح' : 'الهدف']}
+                />
+                <Area type="monotone" dataKey="target" stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="5 5" fillOpacity={1} fill="url(#advGTgt)" />
+                <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#advGVal)" dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* مخطط الحالات */}
+        <div className="rounded-2xl p-5 flex flex-col"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <h3 className="text-white font-black mb-1">توزيع الحالات</h3>
+          <p className="text-slate-500 text-xs mb-4">حسب حالة اشتراك المشترك</p>
+          <div className="flex-1 flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={80} paddingAngle={4} dataKey="value">
+                  {pieData.map((entry, i) => <Cell key={i} fill={entry.color} stroke="transparent" />)}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ background: '#1e1b4b', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#fff', fontSize: '12px' }}
+                  formatter={(v: number, _n: string, p: any) => [`${v} مشترك`, p.payload.name]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-wrap gap-2 justify-center mt-2">
+            {pieData.map((item, i) => (
+              <div key={i} className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                {item.name} ({item.value})
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* آخر العمليات */}
+      <div className="rounded-2xl overflow-hidden"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+          <h3 className="text-white font-black">آخر العمليات</h3>
+          <span className="text-xs text-slate-500 px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            {operations.length} عملية
+          </span>
+        </div>
+        <div className="divide-y divide-white/5">
+          {operations.slice(0, 7).map((op, i) => (
+            <motion.div key={op.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+              className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                op.status === 'مكتمل' ? 'bg-emerald-500/20' :
+                op.status === 'تنشيط النظام' ? 'bg-red-500/20' : 'bg-blue-500/20'
+              }`}>
+                {op.status === 'مكتمل' ? <CheckCircle2 size={14} className="text-emerald-400" /> :
+                  op.status === 'تنشيط النظام' ? <AlertCircle size={14} className="text-red-400" /> :
+                    <Clock size={14} className="text-blue-400" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white truncate">{op.subscriberName}</p>
+                <p className="text-xs text-slate-500">{op.operation} · {op.date}</p>
+              </div>
+              <span className={`text-sm font-black ${op.status === 'مكتمل' ? 'text-emerald-400' : op.status === 'تنشيط النظام' ? 'text-red-400' : 'text-blue-400'}`}>
+                {op.amount}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* إحصائيات النظام */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { label: 'عمليات مكتملة', value: completedOps, total: operations.length, color: '#10b981', icon: <CheckCircle2 size={16} /> },
+          { label: 'قيد المعالجة', value: pendingOps, total: operations.length, color: '#3b82f6', icon: <Clock size={16} /> },
+          { label: 'تنشيط النظام', value: activationOps, total: operations.length, color: '#ef4444', icon: <Zap size={16} /> },
+        ].map((item, i) => (
+          <div key={i} className="rounded-2xl p-5"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ color: item.color }}>{item.icon}</span>
+              <span className="text-slate-300 text-sm font-bold">{item.label}</span>
+              <span className="mr-auto text-white font-black">{item.value} / {item.total}</span>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <motion.div initial={{ width: 0 }} animate={{ width: `${item.total ? item.value / item.total * 100 : 0}%` }}
+                transition={{ duration: 1, delay: 0.3 }}
+                className="h-full rounded-full"
+                style={{ background: `linear-gradient(90deg, ${item.color}99, ${item.color})` }} />
+            </div>
+            <p className="text-slate-500 text-xs mt-2">{item.total ? Math.round(item.value / item.total * 100) : 0}% من الإجمالي</p>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ── الاستعلام المتقدم ──
+function AdvancedAdminPanel({ subscribers, operations }: { subscribers: Subscriber[]; operations: Operation[] }) {
+  const [query, setQuery] = useState('');
+  const [found, setFound] = useState<Subscriber | null>(null);
+  const [searched, setSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [showWallet, setShowWallet] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const runSearch = () => {
+    if (!query.trim()) return;
+    setSearched(false); setFound(null); setIsSearching(true); setProgress(0); setShowWallet(false);
+    let p = 0;
+    intervalRef.current = setInterval(() => {
+      p += Math.random() * 18 + 7;
+      if (p >= 100) {
+        p = 100; setProgress(100);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setTimeout(() => {
+          const q = query.trim().toLowerCase();
+          const res = subscribers.find(s =>
+            s.name.toLowerCase().includes(q) || s.iban.toLowerCase().includes(q) ||
+            s.phone.includes(q) || s.systemAccount.toLowerCase().includes(q) || s.walletAddress.toLowerCase().includes(q)
+          );
+          setFound(res ?? null); setSearched(true); setIsSearching(false); setProgress(0);
+        }, 400);
+      } else { setProgress(p); }
+    }, 80);
+  };
+
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+
+  const subscriberOps = useMemo(() => found ? operations.filter(op => op.subscriberName === found.name) : [], [found, operations]);
+
+  const clear = () => { setQuery(''); setFound(null); setSearched(false); setIsSearching(false); setProgress(0); if (intervalRef.current) clearInterval(intervalRef.current); };
+
+  return (
+    <>
+      {/* صندوق البحث المتقدم */}
+      <div className="rounded-2xl overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(59,130,246,0.08) 100%)', border: '1px solid rgba(16,185,129,0.25)' }}>
+        <div className="p-6 lg:p-8">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #10b981, #06b6d4)' }}>
+              <Search size={22} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-white">الاستعلام عن المشترك</h3>
+              <p className="text-slate-400 text-xs mt-0.5">ابحث بالاسم · الآيبان · رقم الهاتف · عنوان المحفظة · حساب النظام</p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Input placeholder="أدخل الاسم، IBAN، رقم الهاتف..."
+                className="pr-11 text-sm rounded-xl h-12 text-white placeholder:text-slate-500"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
+                value={query} onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && runSearch()}
+                disabled={isSearching} />
+              <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+            </div>
+            <Button onClick={runSearch} disabled={isSearching}
+              className="h-12 px-6 font-bold rounded-xl transition-all whitespace-nowrap"
+              style={{ background: 'linear-gradient(135deg, #10b981, #06b6d4)', boxShadow: '0 4px 20px rgba(16,185,129,0.3)' }}>
+              {isSearching ? 'جارٍ البحث...' : 'استعلام الآن'}
+            </Button>
+            {(searched || isSearching) && (
+              <Button variant="outline" onClick={clear} className="h-12 rounded-xl px-3 border-white/20 text-white hover:bg-white/10">
+                <X size={17} />
+              </Button>
+            )}
+          </div>
+
+          {/* شريط التقدم */}
+          <AnimatePresence>
+            {isSearching && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-slate-400">جارٍ البحث...</span>
+                  <span className="text-sm font-black text-emerald-400">{Math.round(progress)}%</span>
+                </div>
+                <div className="relative h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                  <motion.div className="absolute inset-y-0 right-0 rounded-full"
+                    style={{ width: `${progress}%`, left: 'auto', background: 'linear-gradient(90deg, #10b981, #06b6d4)' }}
+                    animate={{ width: `${progress}%` }} transition={{ duration: 0.1 }} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* نتائج البحث */}
+      <AnimatePresence>
+        {searched && !found && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+            className="rounded-2xl p-10 text-center"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+              <AlertCircle size={28} className="text-red-400" />
+            </div>
+            <h4 className="text-lg font-black text-white mb-1">لم يُعثر على مشترك</h4>
+            <p className="text-slate-500 text-sm">لا توجد نتائج مطابقة لـ "{query}"</p>
+          </motion.div>
+        )}
+
+        {found && (
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+            {/* بطاقة المشترك */}
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.08))', border: '1px solid rgba(59,130,246,0.25)' }}>
+              <div className="h-1" style={{ background: 'linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4)' }} />
+              <div className="p-6">
+                <div className="flex items-start gap-4 mb-5">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg text-xl font-black text-white"
+                    style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
+                    {found.name.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-black text-white">{found.name}</h3>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {found.subscriberStatus && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+                          style={{ background: 'rgba(16,185,129,0.2)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
+                          {found.subscriberStatus}
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-400">{found.joinDate && `عضو منذ ${found.joinDate}`}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+                  {[
+                    { label: 'الجوال', value: found.phone, icon: <Phone size={12} /> },
+                    { label: 'الآيبان', value: found.iban, icon: <CreditCard size={12} />, mono: true },
+                    { label: 'البنك', value: found.bankName, icon: <Building2 size={12} /> },
+                    { label: 'حساب النظام', value: found.systemAccount, icon: <Database size={12} />, mono: true },
+                    { label: 'العملة', value: found.currency, icon: <Globe size={12} /> },
+                    { label: 'المنصة', value: found.platform, icon: <Cpu size={12} /> },
+                  ].filter(f => f.value).map((field, i) => (
+                    <div key={i} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div className="flex items-center gap-1 text-slate-400 mb-1">{field.icon}<span className="text-xs">{field.label}</span></div>
+                      <p className={`text-sm font-bold text-white break-all ${field.mono ? 'font-mono text-xs' : ''}`}>{field.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* المالية */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, color: '#3b82f6', icon: <Wallet size={16} /> },
+                    { label: 'الأرباح', value: found.profits, color: '#10b981', icon: <TrendingUp size={16} /> },
+                    { label: 'رسوم النظام', value: found.systemFees, color: '#f59e0b', icon: <AlertCircle size={16} /> },
+                  ].filter(f => f.value > 0).map((fin, i) => (
+                    <div key={i} className="rounded-xl p-3 text-center"
+                      style={{ background: `${fin.color}15`, border: `1px solid ${fin.color}30` }}>
+                      <div className="flex items-center justify-center gap-1 mb-1" style={{ color: fin.color }}>{fin.icon}</div>
+                      <p className="text-slate-400 text-xs mb-1">{fin.label}</p>
+                      <p className="font-black text-lg" style={{ color: fin.color }}>{fin.value.toLocaleString()} ر.س</p>
+                    </div>
+                  ))}
+                  {found.walletAddress && (
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}>
+                      <p className="text-slate-400 text-xs mb-1">المحفظة الرقمية</p>
+                      <p className="font-mono text-xs text-purple-300 break-all leading-tight">
+                        {showWallet ? found.walletAddress : `${found.walletAddress.slice(0, 16)}…`}
+                      </p>
+                      <button onClick={() => setShowWallet(v => !v)} className="text-xs text-purple-400 mt-1 hover:text-purple-300 flex items-center gap-1">
+                        {showWallet ? <EyeOff size={10} /> : <Eye size={10} />}{showWallet ? 'إخفاء' : 'عرض الكامل'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {found.notes && (
+                  <div className="mt-4 p-3 rounded-xl flex items-start gap-2"
+                    style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                    <AlertTriangle size={14} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-slate-300">{found.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* عمليات المشترك */}
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+                <h4 className="text-white font-black">سجل عمليات المشترك</h4>
+                <span className="text-xs text-slate-400">{subscriberOps.length} عملية</span>
+              </div>
+              {subscriberOps.length === 0 ? (
+                <div className="py-10 text-center text-slate-500">
+                  <ClipboardList size={28} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">لا توجد عمليات مسجّلة</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        {['#', 'العملية', 'المبلغ', 'التاريخ', 'الحالة'].map(h => (
+                          <th key={h} className="text-right text-slate-400 font-bold text-xs px-4 py-3">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subscriberOps.slice(0, 8).map((op, i) => (
+                        <tr key={op.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3 text-slate-500 text-xs">{i + 1}</td>
+                          <td className="px-4 py-3 text-slate-300 text-sm">{op.operation}</td>
+                          <td className={`px-4 py-3 text-sm font-bold ${op.status === 'مكتمل' ? 'text-emerald-400' : op.status === 'تنشيط النظام' ? 'text-red-400' : 'text-blue-400'}`}>{op.amount}</td>
+                          <td className="px-4 py-3 text-slate-500 text-xs">{op.date}</td>
+                          <td className="px-4 py-3">{statusBadge(op.status)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+// ── العمليات المتقدمة ──
+function AdvancedOperations({ operations, onOperationsChange, subscriberNames }: { operations: Operation[]; onOperationsChange: (o: Operation[]) => void; subscriberNames: string[] }) {
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('الكل');
+  const [page, setPage] = useState(1);
+  const [isOpen, setIsOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<Omit<Operation, 'id'>>({ ...EMPTY_OP });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const PER_PAGE = 12;
+
+  const filtered = useMemo(() => {
+    let ops = [...operations];
+    if (filterStatus !== 'الكل') ops = ops.filter(o => o.status === filterStatus);
+    if (search.trim()) { const q = search.toLowerCase(); ops = ops.filter(o => o.subscriberName.toLowerCase().includes(q) || o.operation.includes(q)); }
+    return ops;
+  }, [operations, filterStatus, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const openAdd = () => { setForm({ ...EMPTY_OP, date: todayStr() }); setEditId(null); setIsOpen(true); };
+  const openEdit = (op: Operation) => { const { id, ...rest } = op; setForm(rest); setEditId(id); setIsOpen(true); };
+  const handleSave = () => {
+    if (editId) { onOperationsChange(operations.map(o => o.id === editId ? { id: editId, ...form } : o)); }
+    else { onOperationsChange([{ id: uid(), ...form }, ...operations]); }
+    setIsOpen(false); setPage(1);
+  };
+  const doDelete = (id: string) => { onOperationsChange(operations.filter(o => o.id !== id)); setDeleteId(null); };
+
+  const statusCounts = useMemo(() => ({
+    completed: operations.filter(o => o.status === 'مكتمل').length,
+    pending: operations.filter(o => o.status === 'قيد المعالجة').length,
+    activation: operations.filter(o => o.status === 'تنشيط النظام').length,
+  }), [operations]);
+
+  return (
+    <>
+      {/* إحصائيات العمليات */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'مكتملة', value: statusCounts.completed, color: '#10b981', icon: <CheckCircle2 size={18} /> },
+          { label: 'قيد المعالجة', value: statusCounts.pending, color: '#3b82f6', icon: <Clock size={18} /> },
+          { label: 'تنشيط', value: statusCounts.activation, color: '#ef4444', icon: <Zap size={18} /> },
+        ].map((item, i) => (
+          <div key={i} className="rounded-2xl p-5 flex items-center gap-4"
+            style={{ background: `${item.color}10`, border: `1px solid ${item.color}25` }}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `${item.color}20`, border: `1px solid ${item.color}30` }}>
+              <span style={{ color: item.color }}>{item.icon}</span>
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs">{item.label}</p>
+              <p className="text-2xl font-black text-white">{item.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* شريط البحث والفلتر */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Input placeholder="بحث في العمليات..."
+            className="pr-9 h-11 text-white placeholder:text-slate-500"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+            value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+        </div>
+        <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setPage(1); }}>
+          <SelectTrigger className="sm:w-48 h-11 text-white"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="الكل">جميع الحالات</SelectItem>
+            {OPERATION_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button onClick={openAdd} className="h-11 px-5 gap-2 font-bold"
+          style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', boxShadow: '0 4px 15px rgba(139,92,246,0.3)' }}>
+          <Plus size={16} /> إضافة عملية
+        </Button>
+      </div>
+
+      {/* الجدول */}
+      <div className="rounded-2xl overflow-hidden"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                {['#', 'المشترك', 'العملية', 'المبلغ', 'التاريخ', 'الحالة', ''].map(h => (
+                  <th key={h} className="text-right text-slate-400 font-bold text-xs px-4 py-3.5">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((op, i) => (
+                <motion.tr key={op.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
+                  className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                  <td className="px-4 py-3.5 text-slate-500 text-xs">{(page - 1) * PER_PAGE + i + 1}</td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black text-white"
+                        style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
+                        {(op.subscriberName || '?').charAt(0)}
+                      </div>
+                      <span className="text-sm font-bold text-white">{op.subscriberName || '—'}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-slate-300 text-sm">{op.operation}</td>
+                  <td className={`px-4 py-3.5 text-sm font-bold ${op.status === 'مكتمل' ? 'text-emerald-400' : op.status === 'تنشيط النظام' ? 'text-red-400' : 'text-blue-400'}`}>{op.amount}</td>
+                  <td className="px-4 py-3.5 text-slate-500 text-xs">{op.date}</td>
+                  <td className="px-4 py-3.5">{statusBadge(op.status)}</td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex gap-1">
+                      <button onClick={() => openEdit(op)} className="p-1.5 rounded-lg transition-colors hover:bg-blue-500/20 text-blue-400"><Pencil size={13} /></button>
+                      <button onClick={() => setDeleteId(op.id)} className="p-1.5 rounded-lg transition-colors hover:bg-red-500/20 text-red-400"><Trash2 size={13} /></button>
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+              {paged.length === 0 && (
+                <tr><td colSpan={7} className="text-center py-12 text-slate-500">
+                  <ClipboardList size={28} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">لا توجد عمليات مطابقة</p>
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3.5" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <span className="text-xs text-slate-500">صفحة {page} من {totalPages} · {filtered.length} عملية</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="h-8 px-3 border-white/15 text-slate-300 hover:bg-white/10 gap-1 text-xs"
+                disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronRight size={13} /> السابق
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 px-3 border-white/15 text-slate-300 hover:bg-white/10 gap-1 text-xs"
+                disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                التالي <ChevronLeft size={13} />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* مودال الإضافة/التعديل */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              style={{ background: '#1e1b4b', border: '1px solid rgba(139,92,246,0.3)' }}>
+              <div className="h-1" style={{ background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)' }} />
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-base font-black text-white">{editId ? 'تعديل عملية' : 'إضافة عملية جديدة'}</h3>
+                  <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors"><X size={16} /></button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 mb-1.5 block">اسم المشترك</label>
+                    <Input list="adv-sub-list" value={form.subscriberName} onChange={e => setForm(f => ({ ...f, subscriberName: e.target.value }))}
+                      placeholder="اكتب أو اختر" className="h-10 text-white placeholder:text-slate-500"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }} />
+                    <datalist id="adv-sub-list">{subscriberNames.map(n => <option key={n} value={n} />)}</datalist>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 mb-1.5 block">نوع العملية</label>
+                      <Select value={form.operation} onValueChange={v => setForm(f => ({ ...f, operation: v }))}>
+                        <SelectTrigger className="h-10 text-white" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>{OPERATION_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 mb-1.5 block">الحالة</label>
+                      <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                        <SelectTrigger className="h-10 text-white" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>{OPERATION_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 mb-1.5 block">المبلغ</label>
+                      <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                        placeholder="مثال: 5,000 ر.س" className="h-10 text-white placeholder:text-slate-500"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 mb-1.5 block">التاريخ</label>
+                      <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                        className="h-10 text-white" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <Button onClick={handleSave} className="flex-1 gap-1.5 font-bold"
+                    style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
+                    <Save size={14} />{editId ? 'حفظ التعديل' : 'إضافة العملية'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsOpen(false)} className="border-white/15 text-slate-300 hover:bg-white/10">إلغاء</Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent dir="rtl" style={{ background: '#1e1b4b', border: '1px solid rgba(239,68,68,0.3)' }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-white">تأكيد حذف العملية</AlertDialogTitle>
+            <AlertDialogDescription className="text-right text-slate-400">سيتم حذف العملية نهائياً ولا يمكن التراجع.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="border-white/15 text-slate-300">إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && doDelete(deleteId)} className="bg-red-600 hover:bg-red-700">حذف</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+// ── المشتركون المتقدمون ──
+function AdvancedSubscribers({ subscribers, operations, onSubscribersChange }: { subscribers: Subscriber[]; operations: Operation[]; onSubscribersChange: (s: Subscriber[]) => void }) {
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('الكل');
+  const [page, setPage] = useState(1);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const PER_PAGE = 10;
+
+  const filtered = useMemo(() => {
+    let subs = [...subscribers];
+    if (filterStatus !== 'الكل') subs = subs.filter(s => s.subscriberStatus === filterStatus);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      subs = subs.filter(s => s.name.toLowerCase().includes(q) || s.phone.includes(q) || s.iban.toLowerCase().includes(q) || s.platform.toLowerCase().includes(q));
+    }
+    return subs;
+  }, [subscribers, filterStatus, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const doDelete = (id: string) => { onSubscribersChange(subscribers.filter(s => s.id !== id)); setDeleteId(null); };
+
+  const totalSubscription = subscribers.reduce((a, s) => a + s.subscriptionAmount, 0);
+  const totalProfits = subscribers.reduce((a, s) => a + s.profits, 0);
+  const totalFees = subscribers.reduce((a, s) => a + s.systemFees, 0);
+
+  return (
+    <>
+      {/* ملخص مالي */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'إجمالي الاشتراكات', value: totalSubscription, color: '#3b82f6', icon: <Wallet size={18} /> },
+          { label: 'إجمالي الأرباح', value: totalProfits, color: '#10b981', icon: <TrendingUp size={18} /> },
+          { label: 'إجمالي الرسوم', value: totalFees, color: '#f59e0b', icon: <AlertCircle size={18} /> },
+        ].map((item, i) => (
+          <div key={i} className="rounded-2xl p-5 flex items-center gap-4"
+            style={{ background: `${item.color}10`, border: `1px solid ${item.color}25` }}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `${item.color}20`, border: `1px solid ${item.color}30` }}>
+              <span style={{ color: item.color }}>{item.icon}</span>
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs">{item.label}</p>
+              <p className="text-xl font-black text-white">{item.value.toLocaleString()} ر.س</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* البحث والفلتر */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Input placeholder="بحث بالاسم، الهاتف، الآيبان، المنصة..."
+            className="pr-9 h-11 text-white placeholder:text-slate-500"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+            value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+        </div>
+        <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setPage(1); }}>
+          <SelectTrigger className="sm:w-48 h-11 text-white"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="الكل">جميع الحالات</SelectItem>
+            {SUBSCRIBER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* قائمة المشتركين */}
+      <div className="rounded-2xl overflow-hidden"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          {paged.map((sub, i) => {
+            const subOpsCount = operations.filter(o => o.subscriberName === sub.name).length;
+            const initials = sub.name.split(' ').map(w => w[0]).join('').slice(0, 2);
+            const colors = ['from-blue-500 to-cyan-500', 'from-violet-500 to-purple-500', 'from-emerald-500 to-teal-500', 'from-amber-500 to-orange-500', 'from-rose-500 to-pink-500'];
+            const color = colors[i % colors.length];
+            return (
+              <motion.div key={sub.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center flex-shrink-0 text-sm font-black text-white shadow-lg`}>
+                  {initials || '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-black text-white">{sub.name || '(بدون اسم)'}</p>
+                    {sub.subscriberStatus && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                        style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}>
+                        {sub.subscriberStatus}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                    {sub.phone && <span className="text-xs text-slate-500">{sub.phone}</span>}
+                    {sub.platform && <span className="text-xs text-purple-400">{sub.platform}</span>}
+                    {sub.currency && <span className="text-xs text-blue-400 font-bold">{sub.currency}</span>}
+                    <span className="text-xs text-slate-600">{subOpsCount} عملية</span>
+                  </div>
+                </div>
+                <div className="text-left flex-shrink-0 hidden sm:block">
+                  {sub.subscriptionAmount > 0 && (
+                    <p className="text-sm font-black text-white">{sub.subscriptionAmount.toLocaleString()} ر.س</p>
+                  )}
+                  {sub.profits > 0 && (
+                    <p className="text-xs text-emerald-400">+{sub.profits.toLocaleString()} ر.س</p>
+                  )}
+                </div>
+                <button onClick={() => setDeleteId(sub.id)}
+                  className="p-2 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors flex-shrink-0">
+                  <Trash2 size={14} />
+                </button>
+              </motion.div>
+            );
+          })}
+          {paged.length === 0 && (
+            <div className="py-12 text-center text-slate-500">
+              <Users size={28} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">لا يوجد مشتركون مطابقون</p>
+            </div>
+          )}
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3.5" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <span className="text-xs text-slate-500">صفحة {page} من {totalPages} · {filtered.length} مشترك</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="h-8 px-3 border-white/15 text-slate-300 hover:bg-white/10 gap-1 text-xs"
+                disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronRight size={13} /> السابق
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 px-3 border-white/15 text-slate-300 hover:bg-white/10 gap-1 text-xs"
+                disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                التالي <ChevronLeft size={13} />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent dir="rtl" style={{ background: '#1e1b4b', border: '1px solid rgba(239,68,68,0.3)' }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-white">تأكيد حذف المشترك</AlertDialogTitle>
+            <AlertDialogDescription className="text-right text-slate-400">سيتم حذف البيانات نهائياً.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="border-white/15 text-slate-300">إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && doDelete(deleteId)} className="bg-red-600 hover:bg-red-700">حذف المشترك</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
