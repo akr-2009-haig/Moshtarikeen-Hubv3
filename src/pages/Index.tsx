@@ -2693,22 +2693,22 @@ function AdvancedDashboard({ subscribers, operations, stats }: { subscribers: Su
   const glowCards = [
     {
       title: 'إجمالي المشتركين', value: stats.totalSubscribers, sub: `نشط: ${activeSubscribers}`,
-      icon: <Users size={24} />, gradient: 'from-blue-600 to-cyan-500', glow: 'rgba(59,130,246,0.4)',
+      icon: <Users size={24} />, gradientCss: 'linear-gradient(135deg,#2563eb,#06b6d4)', glow: 'rgba(59,130,246,0.4)',
       trend: '+12%', up: true,
     },
     {
       title: 'إجمالي الأرباح', value: stats.totalProfits, sub: `${completedOps} عملية مكتملة`,
-      icon: <TrendingUp size={24} />, gradient: 'from-emerald-500 to-teal-400', glow: 'rgba(16,185,129,0.4)',
+      icon: <TrendingUp size={24} />, gradientCss: 'linear-gradient(135deg,#10b981,#2dd4bf)', glow: 'rgba(16,185,129,0.4)',
       trend: '+8.3%', up: true,
     },
     {
       title: 'الاشتراكات النشطة', value: stats.activeSubscriptions, sub: `من ${stats.totalSubsCount} مشترك`,
-      icon: <CheckCheck size={24} />, gradient: 'from-violet-600 to-purple-500', glow: 'rgba(139,92,246,0.4)',
+      icon: <CheckCheck size={24} />, gradientCss: 'linear-gradient(135deg,#7c3aed,#a855f7)', glow: 'rgba(139,92,246,0.4)',
       trend: '+5.1%', up: true,
     },
     {
       title: 'رسوم مستحقة', value: stats.pendingRequests, sub: `${stats.activationOpsStr} تنشيط`,
-      icon: <AlertCircle size={24} />, gradient: 'from-amber-500 to-orange-400', glow: 'rgba(245,158,11,0.4)',
+      icon: <AlertCircle size={24} />, gradientCss: 'linear-gradient(135deg,#f59e0b,#fb923c)', glow: 'rgba(245,158,11,0.4)',
       trend: '-2.4%', up: false,
     },
   ];
@@ -2735,7 +2735,8 @@ function AdvancedDashboard({ subscribers, operations, stats }: { subscribers: Su
             <div className="absolute inset-0 opacity-10 rounded-2xl"
               style={{ background: `linear-gradient(135deg, ${card.glow}, transparent)` }} />
             {/* أيقونة بتدرج */}
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.gradient} flex items-center justify-center text-white mb-4 shadow-lg`}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white mb-4 shadow-lg"
+              style={{ background: card.gradientCss }}>
               {card.icon}
             </div>
             <p className="text-slate-400 text-xs font-medium mb-1">{card.title}</p>
@@ -3448,12 +3449,19 @@ function AdvancedSubscribers({ subscribers, operations, onSubscribersChange }: {
           {paged.map((sub, i) => {
             const subOpsCount = operations.filter(o => o.subscriberName === sub.name).length;
             const initials = sub.name.split(' ').map(w => w[0]).join('').slice(0, 2);
-            const colors = ['from-blue-500 to-cyan-500', 'from-violet-500 to-purple-500', 'from-emerald-500 to-teal-500', 'from-amber-500 to-orange-500', 'from-rose-500 to-pink-500'];
-            const color = colors[i % colors.length];
+            const colorGradients = [
+              'linear-gradient(135deg,#3b82f6,#06b6d4)',
+              'linear-gradient(135deg,#8b5cf6,#a855f7)',
+              'linear-gradient(135deg,#10b981,#14b8a6)',
+              'linear-gradient(135deg,#f59e0b,#f97316)',
+              'linear-gradient(135deg,#f43f5e,#ec4899)',
+            ];
+            const colorGrad = colorGradients[i % colorGradients.length];
             return (
               <motion.div key={sub.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                 className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center flex-shrink-0 text-sm font-black text-white shadow-lg`}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black text-white shadow-lg"
+                  style={{ background: colorGrad }}>
                   {initials || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
