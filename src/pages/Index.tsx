@@ -2560,11 +2560,11 @@ function AdvancedSystemTab({
 }) {
   const [subTab, setSubTab] = useState<AdvancedSubTab>('dashboard');
 
-  const subTabs: { id: AdvancedSubTab; label: string; icon: React.ReactNode; color: string }[] = [
-    { id: 'dashboard', label: 'لوحة التحكم', icon: <LayoutDashboard size={16} />, color: 'from-blue-500 to-cyan-500' },
-    { id: 'admin', label: 'الاستعلام', icon: <Search size={16} />, color: 'from-emerald-500 to-teal-500' },
-    { id: 'operations', label: 'العمليات', icon: <ClipboardList size={16} />, color: 'from-violet-500 to-purple-500' },
-    { id: 'subscribers', label: 'المشتركون', icon: <Users size={16} />, color: 'from-amber-500 to-orange-500' },
+  const subTabs: { id: AdvancedSubTab; label: string; icon: React.ReactNode; from: string; to: string; glow: string }[] = [
+    { id: 'dashboard', label: 'لوحة التحكم', icon: <LayoutDashboard size={16} />, from: '#3b82f6', to: '#06b6d4', glow: 'rgba(59,130,246,0.4)' },
+    { id: 'admin', label: 'الاستعلام', icon: <Search size={16} />, from: '#10b981', to: '#14b8a6', glow: 'rgba(16,185,129,0.4)' },
+    { id: 'operations', label: 'العمليات', icon: <ClipboardList size={16} />, from: '#8b5cf6', to: '#7c3aed', glow: 'rgba(139,92,246,0.4)' },
+    { id: 'subscribers', label: 'المشتركون', icon: <Users size={16} />, from: '#f59e0b', to: '#f97316', glow: 'rgba(245,158,11,0.4)' },
   ];
 
   return (
@@ -2633,7 +2633,7 @@ function AdvancedSystemTab({
                     : 'text-slate-400 hover:text-white'
                 }`}
                 style={subTab === tab.id
-                  ? { background: `linear-gradient(135deg, ${tab.color.replace('from-', '').split(' ')[0].replace('from-', '')})`, boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }
+                  ? { background: `linear-gradient(135deg, ${tab.from}, ${tab.to})`, boxShadow: `0 4px 20px ${tab.glow}` }
                   : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }
                 }>
                 {tab.icon}
