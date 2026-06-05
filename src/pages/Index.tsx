@@ -3237,13 +3237,13 @@ function printSubscriberPDF(found: Subscriber, subscriberOps: Operation[]) {
     { label: 'العملة', value: found.currency },
     { label: 'المنصة', value: found.platform },
     { label: 'تاريخ الانضمام', value: found.joinDate },
-  ].filter(f => f.value);
+  ].filter(f => f.value && String(f.value).trim() !== '');
 
   const financials = [
     { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, color: '#1d4ed8' },
     { label: 'الأرباح', value: found.profits, color: '#059669' },
     { label: 'رسوم النظام', value: found.systemFees, color: '#d97706' },
-  ].filter(f => f.value > 0);
+  ].filter(f => f.value != null && Number(f.value) > 0);
 
   const opsHTML = subscriberOps.length > 0 ? `
     <div class="section">
@@ -3354,14 +3354,14 @@ function downloadSubscriberPNG(found: Subscriber, subscriberOps: Operation[]) {
     { label: 'العملة', value: found.currency },
     { label: 'المنصة', value: found.platform },
     { label: 'تاريخ الانضمام', value: found.joinDate },
-  ].filter(f => f.value);
+  ].filter(f => f.value && String(f.value).trim() !== '');
 
   // ── Light-theme matching FinBox: bg/ring/color for each financial ──
   const financials = [
     { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, bg: '#eff6ff', ring: '#bfdbfe', color: '#1d4ed8' },
     { label: 'الأرباح', value: found.profits, bg: '#ecfdf5', ring: '#a7f3d0', color: '#047857' },
     { label: 'رسوم النظام', value: found.systemFees, bg: '#fff7ed', ring: '#fed7aa', color: '#ea580c' },
-  ].filter(f => f.value > 0);
+  ].filter(f => f.value != null && Number(f.value) > 0);
 
   const opsToShow = subscriberOps.slice(0, 12);
   const FCOLS = 4;
@@ -3715,14 +3715,14 @@ function createSubscriberVideo(
     { label: 'حساب النظام', value: found.systemAccount },
     { label: 'العملة', value: found.currency },
     { label: 'المنصة', value: found.platform },
-  ].filter(f => f.value);
+  ].filter(f => f.value && String(f.value).trim() !== '');
 
   // Light-theme financials matching FinBox
   const financials = [
     { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, bg: '#eff6ff', ring: '#bfdbfe', color: '#1d4ed8' },
     { label: 'الأرباح', value: found.profits, bg: '#ecfdf5', ring: '#a7f3d0', color: '#047857' },
     { label: 'رسوم النظام', value: found.systemFees, bg: '#fff7ed', ring: '#fed7aa', color: '#ea580c' },
-  ].filter(f => f.value > 0);
+  ].filter(f => f.value != null && Number(f.value) > 0);
 
   function easeOut(t: number) { return 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3); }
   function easeInOut(t: number) { const c = Math.max(0, Math.min(1, t)); return c < 0.5 ? 2 * c * c : 1 - Math.pow(-2 * c + 2, 2) / 2; }
