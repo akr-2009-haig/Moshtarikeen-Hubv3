@@ -3345,6 +3345,7 @@ function printSubscriberPDF(found: Subscriber, subscriberOps: Operation[]) {
 }
 
 function downloadSubscriberPNG(found: Subscriber, subscriberOps: Operation[]) {
+  // ── Light-theme PNG matching the AdminPanel UI exactly ──
   const fields = [
     { label: 'الجوال', value: found.phone },
     { label: 'الآيبان', value: found.iban },
@@ -3355,249 +3356,300 @@ function downloadSubscriberPNG(found: Subscriber, subscriberOps: Operation[]) {
     { label: 'تاريخ الانضمام', value: found.joinDate },
   ].filter(f => f.value);
 
+  // ── Light-theme matching FinBox: bg/ring/color for each financial ──
   const financials = [
-    { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, color: '#3b82f6' },
-    { label: 'الأرباح', value: found.profits, color: '#10b981' },
-    { label: 'رسوم النظام', value: found.systemFees, color: '#f59e0b' },
+    { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, bg: '#eff6ff', ring: '#bfdbfe', color: '#1d4ed8' },
+    { label: 'الأرباح', value: found.profits, bg: '#ecfdf5', ring: '#a7f3d0', color: '#047857' },
+    { label: 'رسوم النظام', value: found.systemFees, bg: '#fff7ed', ring: '#fed7aa', color: '#ea580c' },
   ].filter(f => f.value > 0);
 
-  const opsToShow = subscriberOps.slice(0, 8);
-  const fieldRows = Math.ceil(fields.length / 3);
+  const opsToShow = subscriberOps.slice(0, 12);
+  const FCOLS = 4;
+  const fieldRows = Math.ceil(fields.length / FCOLS);
 
   const W = 1200;
-  const PAD = 50;
-  let H = 130 + 110; // header + name area
-  if (fields.length > 0) H += 40 + fieldRows * 88 + 20;
-  if (financials.length > 0) H += 40 + 100 + 20;
-  if (found.walletAddress) H += 80 + 20;
-  if (found.notes) H += 70 + 20;
-  if (opsToShow.length > 0) H += 40 + 44 + opsToShow.length * 42 + 20;
-  H += 70; // footer
+  const PAD = 48;
+  // Dynamic height calculation
+  let H = 76 + 16;                                          // header bar + gap
+  H += 104 + 16;                                           // profile card + gap
+  if (fields.length > 0) H += 22 + fieldRows * 76 + 16;   // section title + fields
+  if (financials.length > 0) H += 22 + 88 + 16;           // section title + fin boxes
+  if (found.walletAddress) H += 56 + 12;                  // wallet box
+  if (found.notes) H += 56 + 12;                          // notes box
+  if (opsToShow.length > 0) H += 22 + 40 + opsToShow.length * 44 + 16; // section title + table
+  H += 52;                                                  // footer
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  // Background
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, '#0a0f1e');
-  bgGrad.addColorStop(1, '#0f172a');
-  ctx.fillStyle = bgGrad;
+  // ── Background: slate-50 ──
+  ctx.fillStyle = '#f8fafc';
   ctx.fillRect(0, 0, W, H);
-
   // Subtle grid
-  ctx.strokeStyle = 'rgba(59,130,246,0.04)';
+  ctx.strokeStyle = 'rgba(148,163,184,0.06)';
   ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  for (let x = 0; x < W; x += 48) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let yg = 0; yg < H; yg += 48) { ctx.beginPath(); ctx.moveTo(0, yg); ctx.lineTo(W, yg); ctx.stroke(); }
 
-  // Header
-  const hGrad = ctx.createLinearGradient(0, 0, W, 0);
-  hGrad.addColorStop(0, '#1d4ed8'); hGrad.addColorStop(1, '#7c3aed');
-  ctx.fillStyle = hGrad;
-  drawRoundRectCanvas(ctx, 0, 0, W, 115, 0);
-  ctx.fill();
-
+  // ── Header Bar: white, emerald→teal→blue accent stripe ──
   ctx.fillStyle = 'white';
-  ctx.font = 'bold 28px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText('نظام إدارة المشتركين', W - PAD, 52);
-  ctx.fillStyle = 'rgba(255,255,255,0.65)';
-  ctx.font = '15px Arial';
-  ctx.fillText(`تقرير بيانات المشترك — ${new Date().toLocaleDateString('ar-SA')}`, W - PAD, 84);
+  ctx.fillRect(0, 0, W, 72);
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fillRect(0, 71, W, 1);
+  const acG = ctx.createLinearGradient(0, 0, W, 0);
+  acG.addColorStop(0, '#34d399'); acG.addColorStop(0.35, '#2dd4bf'); acG.addColorStop(1, '#60a5fa');
+  ctx.fillStyle = acG;
+  ctx.fillRect(0, 0, W, 4);
+  // Logo circle (emerald-50, emerald ring)
+  ctx.fillStyle = '#ecfdf5'; ctx.strokeStyle = '#6ee7b7'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(W - PAD - 22, 36, 24, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#065f46'; ctx.font = 'bold 19px Arial'; ctx.textAlign = 'center';
+  ctx.fillText('م', W - PAD - 22, 43);
+  // Title text
+  ctx.fillStyle = '#0f172a'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'right';
+  ctx.fillText('نظام إدارة المشتركين', W - PAD - 58, 37);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '13px Arial';
+  ctx.fillText(`تقرير استعلام — ${new Date().toLocaleDateString('ar-SA')}`, W - PAD - 58, 57);
 
-  let y = 130;
+  let y = 88;
 
-  // Avatar circle
-  ctx.fillStyle = 'rgba(59,130,246,0.25)';
-  ctx.strokeStyle = 'rgba(59,130,246,0.6)';
-  ctx.lineWidth = 2;
+  // ── Profile Card: white, ring-slate-200, emerald top strip, emerald avatar ──
+  ctx.fillStyle = 'white';
+  ctx.shadowColor = 'rgba(0,0,0,0.06)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 2;
+  drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 100, 14); ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+  drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 100, 14); ctx.stroke();
+  // Accent top strip (emerald→teal→blue, 5px)
+  const profAccG = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
+  profAccG.addColorStop(0, '#34d399'); profAccG.addColorStop(0.4, '#2dd4bf'); profAccG.addColorStop(1, '#60a5fa');
+  ctx.fillStyle = profAccG;
   ctx.beginPath();
-  ctx.arc(W - PAD - 38, y + 38, 42, 0, Math.PI * 2);
-  ctx.fill(); ctx.stroke();
-
-  ctx.fillStyle = '#60a5fa';
-  ctx.font = 'bold 32px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(found.name.charAt(0), W - PAD - 38, y + 50);
-
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 34px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText(found.name, W - PAD - 96, y + 40);
-
+  ctx.moveTo(PAD + 14, y); ctx.lineTo(W - PAD - 14, y);
+  ctx.quadraticCurveTo(W - PAD, y, W - PAD, y + 7);
+  ctx.lineTo(W - PAD, y + 5); ctx.lineTo(PAD, y + 5);
+  ctx.quadraticCurveTo(PAD, y, PAD + 14, y);
+  ctx.closePath(); ctx.fill();
+  // Avatar: emerald-400 → teal-500 rounded square (matching from-emerald-400 to-teal-500)
+  const avGrad = ctx.createLinearGradient(PAD + 18, y + 14, PAD + 82, y + 86);
+  avGrad.addColorStop(0, '#34d399'); avGrad.addColorStop(1, '#14b8a6');
+  ctx.fillStyle = avGrad;
+  drawRoundRectCanvas(ctx, PAD + 18, y + 16, 68, 68, 14); ctx.fill();
+  // Person silhouette (head + shoulders)
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.beginPath(); ctx.arc(PAD + 52, y + 38, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(PAD + 52, y + 68, 20, 13, 0, Math.PI, 0); ctx.fill();
+  // Verified dot (emerald-500, white border)
+  ctx.fillStyle = '#10b981'; ctx.strokeStyle = 'white'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(PAD + 78, y + 76, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center';
+  ctx.fillText('✓', PAD + 78, y + 80);
+  // Subscriber name (text-slate-800 font-black)
+  ctx.fillStyle = '#1e293b'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'right';
+  ctx.fillText(found.name, W - PAD - 16, y + 46);
+  // Status badge
   if (found.subscriberStatus) {
-    ctx.fillStyle = 'rgba(16,185,129,0.2)';
-    ctx.strokeStyle = 'rgba(16,185,129,0.4)';
-    ctx.lineWidth = 1;
-    drawRoundRectCanvas(ctx, W - PAD - 96 - ctx.measureText(found.subscriberStatus).width - 16, y + 56, ctx.measureText(found.subscriberStatus).width + 16, 26, 13);
-    ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#34d399';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText(found.subscriberStatus, W - PAD - 104, y + 74);
+    const stMap: Record<string, { bg: string; ring: string; txt: string }> = {
+      'نشط':         { bg: '#ecfdf5', ring: '#a7f3d0', txt: '#047857' },
+      'مشترك جديد': { bg: '#eff6ff', ring: '#bfdbfe', txt: '#1d4ed8' },
+      'رسوم مستحقة':{ bg: '#fff7ed', ring: '#fed7aa', txt: '#c2410c' },
+      'توزيع أرباح':{ bg: '#faf5ff', ring: '#e9d5ff', txt: '#7e22ce' },
+      'معلق':        { bg: '#f1f5f9', ring: '#cbd5e1', txt: '#475569' },
+      'موقوف':       { bg: '#fef2f2', ring: '#fecaca', txt: '#991b1b' },
+    };
+    const sc = stMap[found.subscriberStatus] ?? { bg: '#f1f5f9', ring: '#cbd5e1', txt: '#475569' };
+    ctx.font = 'bold 12px Arial';
+    const nameW = ctx.measureText(found.name).width;
+    const sw = ctx.measureText(found.subscriberStatus).width + 16;
+    const sx = W - PAD - 16 - nameW - 12 - sw;
+    ctx.fillStyle = sc.bg; ctx.strokeStyle = sc.ring; ctx.lineWidth = 1;
+    drawRoundRectCanvas(ctx, sx, y + 28, sw, 22, 11); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = sc.txt; ctx.textAlign = 'right';
+    ctx.fillText(found.subscriberStatus, sx + sw - 8, y + 44);
   }
+  // Verified badge (bg-slate-100 text-slate-500)
+  ctx.font = '11px Arial';
+  const verW = ctx.measureText('موثّق').width + 14;
+  ctx.fillStyle = '#f1f5f9'; ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
+  drawRoundRectCanvas(ctx, W - PAD - 16 - verW, y + 56, verW, 20, 10); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.textAlign = 'right';
+  ctx.fillText('موثّق', W - PAD - 9, y + 71);
+  // Join date (text-slate-400 text-xs)
   if (found.joinDate) {
-    ctx.fillStyle = '#64748b';
-    ctx.font = '13px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText(`عضو منذ: ${found.joinDate}`, W - PAD - 96, y + 96);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '12px Arial'; ctx.textAlign = 'right';
+    ctx.fillText(`عضو منذ: ${found.joinDate}`, W - PAD - 16, y + 86);
   }
 
-  y += 118;
+  y += 100 + 16;
 
-  // Helper: section title
-  const drawSectionTitle = (title: string, curY: number) => {
-    ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 14px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText(title, W - PAD, curY);
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(PAD, curY + 6);
-    ctx.lineTo(W - PAD - ctx.measureText(title).width - 12, curY + 6);
-    ctx.stroke();
+  // ── Section header helper ──
+  const sectionTitle = (title: string) => {
+    ctx.fillStyle = '#64748b'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'right';
+    ctx.fillText(title, W - PAD, y + 14);
+    ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, y + 8);
+    ctx.lineTo(W - PAD - ctx.measureText(title).width - 10, y + 8); ctx.stroke();
+    y += 22;
   };
 
-  // Fields grid
+  // ── Mini-Info Fields: matching MiniInfo (bg-slate-50 ring-1 ring-slate-200) ──
   if (fields.length > 0) {
-    drawSectionTitle('البيانات الشخصية', y + 14);
-    y += 36;
-    const colW = (W - PAD * 2) / 3;
+    sectionTitle('البيانات الشخصية');
+    const gap = 12;
+    const fw = (W - PAD * 2 - gap * (FCOLS - 1)) / FCOLS;
     fields.forEach((field, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const fx = W - PAD - col * colW;
-      const fy = y + row * 88;
-      ctx.fillStyle = 'rgba(255,255,255,0.05)';
-      drawRoundRectCanvas(ctx, fx - colW + 10, fy, colW - 20, 75, 10);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.09)';
-      ctx.lineWidth = 1;
-      drawRoundRectCanvas(ctx, fx - colW + 10, fy, colW - 20, 75, 10);
-      ctx.stroke();
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'right';
-      ctx.fillText(field.label, fx - 18, fy + 24);
-      ctx.fillStyle = 'white';
-      ctx.font = 'bold 14px Arial';
+      const col = i % FCOLS;
+      const row = Math.floor(i / FCOLS);
+      const fx = W - PAD - col * (fw + gap) - fw; // RTL: col0=rightmost
+      const fy = y + row * 76;
+      ctx.fillStyle = '#f8fafc';
+      ctx.shadowColor = 'rgba(0,0,0,0.03)'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 1;
+      drawRoundRectCanvas(ctx, fx, fy, fw, 64, 10); ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+      drawRoundRectCanvas(ctx, fx, fy, fw, 64, 10); ctx.stroke();
+      // Label: text-slate-400 text-xs
+      ctx.fillStyle = '#94a3b8'; ctx.font = '11px Arial'; ctx.textAlign = 'right';
+      ctx.fillText(field.label, fx + fw - 12, fy + 22);
+      // Value: text-slate-700 font-bold text-sm
+      ctx.fillStyle = '#334155'; ctx.font = 'bold 13px Arial';
       const val = field.value.length > 24 ? field.value.slice(0, 22) + '…' : field.value;
-      ctx.fillText(val, fx - 18, fy + 54);
+      ctx.fillText(val, fx + fw - 12, fy + 50);
     });
-    y += fieldRows * 88 + 18;
+    y += fieldRows * 76 + 16;
   }
 
-  // Financials
+  // ── Financial Boxes: matching FinBox (bg-blue-50 ring-blue-200, etc.) ──
   if (financials.length > 0) {
-    drawSectionTitle('الملخص المالي', y + 14);
-    y += 36;
-    const finColW = (W - PAD * 2) / financials.length;
+    sectionTitle('الملخص المالي');
+    const gap = 12;
+    const finW = (W - PAD * 2 - gap * (financials.length - 1)) / financials.length;
     financials.forEach((fin, i) => {
-      const fx = W - PAD - i * finColW;
-      ctx.fillStyle = `${fin.color}20`;
-      drawRoundRectCanvas(ctx, fx - finColW + 10, y, finColW - 20, 88, 12);
-      ctx.fill();
-      ctx.strokeStyle = `${fin.color}45`;
-      ctx.lineWidth = 1.5;
-      drawRoundRectCanvas(ctx, fx - finColW + 10, y, finColW - 20, 88, 12);
-      ctx.stroke();
-      ctx.fillStyle = fin.color;
-      ctx.font = 'bold 14px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(fin.label, fx - finColW / 2, y + 30);
-      ctx.font = 'bold 26px Arial';
-      ctx.fillText(`${fin.value.toLocaleString()} ر.س`, fx - finColW / 2, y + 68);
+      const fx = W - PAD - i * (finW + gap) - finW; // RTL
+      ctx.fillStyle = fin.bg;
+      ctx.shadowColor = 'rgba(0,0,0,0.03)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1;
+      drawRoundRectCanvas(ctx, fx, y, finW, 84, 12); ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = fin.ring; ctx.lineWidth = 1;
+      drawRoundRectCanvas(ctx, fx, y, finW, 84, 12); ctx.stroke();
+      // Label: text-slate-500 text-xs
+      ctx.fillStyle = '#64748b'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+      ctx.fillText(fin.label, fx + finW / 2, y + 28);
+      // Value: colored, text-lg font-black
+      ctx.fillStyle = fin.color; ctx.font = 'bold 22px Arial';
+      ctx.fillText(`${fin.value.toLocaleString()} ر.س`, fx + finW / 2, y + 64);
     });
-    y += 108;
+    y += 84 + 16;
   }
 
-  // Wallet
+  // ── Wallet: bg-purple-50 ring-purple-200 text-purple-700 ──
   if (found.walletAddress) {
-    drawSectionTitle('المحفظة الرقمية', y + 14);
-    y += 36;
-    ctx.fillStyle = 'rgba(139,92,246,0.12)';
-    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 52, 10);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(139,92,246,0.3)';
-    ctx.lineWidth = 1;
-    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 52, 10);
-    ctx.stroke();
-    ctx.fillStyle = '#a78bfa';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'right';
-    const wTrunc = found.walletAddress.length > 70 ? found.walletAddress.slice(0, 68) + '…' : found.walletAddress;
-    ctx.fillText(wTrunc, W - PAD - 16, y + 34);
-    y += 72;
+    ctx.fillStyle = '#faf5ff';
+    ctx.shadowColor = 'rgba(0,0,0,0.03)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1;
+    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 52, 10); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = '#e9d5ff'; ctx.lineWidth = 1;
+    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 52, 10); ctx.stroke();
+    ctx.fillStyle = '#7e22ce'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right';
+    ctx.fillText('المحفظة الرقمية', W - PAD - 14, y + 20);
+    ctx.fillStyle = '#6d28d9'; ctx.font = '13px Arial';
+    const wT = found.walletAddress.length > 78 ? found.walletAddress.slice(0, 76) + '…' : found.walletAddress;
+    ctx.fillText(wT, W - PAD - 14, y + 40);
+    y += 52 + 12;
   }
 
-  // Notes
+  // ── Notes: bg-yellow-50 ring-yellow-200 text-yellow-700 ──
   if (found.notes) {
-    ctx.fillStyle = 'rgba(245,158,11,0.1)';
-    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 52, 10);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(245,158,11,0.3)';
-    ctx.lineWidth = 1;
-    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 52, 10);
-    ctx.stroke();
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'right';
-    const notesTrunc = found.notes.length > 80 ? found.notes.slice(0, 78) + '…' : found.notes;
-    ctx.fillText(notesTrunc, W - PAD - 16, y + 34);
-    y += 72;
+    ctx.fillStyle = '#fefce8';
+    ctx.shadowColor = 'rgba(0,0,0,0.03)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1;
+    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 52, 10); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 1;
+    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, 52, 10); ctx.stroke();
+    ctx.fillStyle = '#a16207'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right';
+    ctx.fillText('ملاحظات', W - PAD - 14, y + 20);
+    ctx.fillStyle = '#92400e'; ctx.font = '13px Arial';
+    const nT = found.notes.length > 80 ? found.notes.slice(0, 78) + '…' : found.notes;
+    ctx.fillText(nT, W - PAD - 14, y + 40);
+    y += 52 + 12;
   }
 
-  // Operations table
+  // ── Operations Table: white card, bg-slate-50 header, colored status badges ──
   if (opsToShow.length > 0) {
-    drawSectionTitle(`سجل العمليات (${subscriberOps.length})`, y + 14);
-    y += 36;
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillRect(PAD, y, W - PAD * 2, 40);
+    sectionTitle(`سجل عمليات المشترك (${subscriberOps.length})`);
+    const tH = 40 + opsToShow.length * 44;
+    // Table card
+    ctx.fillStyle = 'white';
+    ctx.shadowColor = 'rgba(0,0,0,0.05)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
+    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, tH, 10); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+    drawRoundRectCanvas(ctx, PAD, y, W - PAD * 2, tH, 10); ctx.stroke();
+    // Header row: bg-slate-50
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(PAD + 1, y + 1, W - PAD * 2 - 2, 39);
+    ctx.strokeStyle = '#f1f5f9'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, y + 40); ctx.lineTo(W - PAD, y + 40); ctx.stroke();
+    // Column X positions (RTL: col0=rightmost = #)
+    const colXs = [W - PAD - 28, W - PAD - 88, W - PAD - 390, W - PAD - 600, W - PAD - 830];
     const headers = ['#', 'العملية', 'المبلغ', 'التاريخ', 'الحالة'];
-    const colWidths = [55, 320, 230, 200, 220];
-    let xOff = W - PAD;
-    ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'right';
-    headers.forEach((h, i) => {
-      ctx.fillText(h, xOff - 12, y + 26);
-      xOff -= colWidths[i];
-    });
+    ctx.fillStyle = '#64748b'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right';
+    headers.forEach((h, i) => ctx.fillText(h, colXs[i], y + 26));
     y += 40;
     opsToShow.forEach((op, i) => {
-      if (i % 2 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.025)';
-        ctx.fillRect(PAD, y, W - PAD * 2, 40);
+      if (i % 2 === 1) {
+        ctx.fillStyle = 'rgba(248,250,252,0.7)';
+        ctx.fillRect(PAD + 1, y, W - PAD * 2 - 2, 44);
       }
-      const sc = op.status === 'مكتمل' ? '#10b981' : op.status === 'تنشيط النظام' ? '#ef4444' : '#3b82f6';
-      xOff = W - PAD;
-      ctx.fillStyle = '#94a3b8'; ctx.font = '13px Arial'; ctx.textAlign = 'right';
-      ctx.fillText(String(i + 1), xOff - 12, y + 26); xOff -= colWidths[0];
-      ctx.fillStyle = '#cbd5e1';
-      ctx.fillText(op.operation, xOff - 12, y + 26); xOff -= colWidths[1];
-      ctx.fillStyle = sc; ctx.font = 'bold 13px Arial';
-      ctx.fillText(op.amount, xOff - 12, y + 26); xOff -= colWidths[2];
-      ctx.fillStyle = '#64748b'; ctx.font = '12px Arial';
-      ctx.fillText(op.date, xOff - 12, y + 26); xOff -= colWidths[3];
-      ctx.fillStyle = sc; ctx.font = '13px Arial';
-      ctx.fillText(op.status, xOff - 12, y + 26);
-      y += 40;
+      if (i < opsToShow.length - 1) {
+        ctx.strokeStyle = '#f1f5f9'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(PAD + 20, y + 44); ctx.lineTo(W - PAD - 20, y + 44); ctx.stroke();
+      }
+      // # column (text-slate-400 text-xs)
+      ctx.fillStyle = '#94a3b8'; ctx.font = '12px Arial'; ctx.textAlign = 'right';
+      ctx.fillText(String(i + 1), colXs[0], y + 28);
+      // operation name (text-slate-600 text-sm)
+      ctx.fillStyle = '#475569'; ctx.font = '13px Arial';
+      const opN = op.operation.length > 32 ? op.operation.slice(0, 30) + '…' : op.operation;
+      ctx.fillText(opN, colXs[1], y + 28);
+      // amount color matching amountColor()
+      const amtC = op.status === 'تنشيط النظام' ? '#dc2626'
+                 : op.status === 'اشتراك جديد'  ? '#ca8a04'
+                 : op.status === 'قيد المعالجة' ? '#2563eb' : '#059669';
+      ctx.fillStyle = amtC; ctx.font = 'bold 13px Arial';
+      ctx.fillText(op.amount, colXs[2], y + 28);
+      // date (text-slate-500 text-xs)
+      ctx.fillStyle = '#94a3b8'; ctx.font = '12px Arial';
+      ctx.fillText(op.date, colXs[3], y + 28);
+      // Status badge matching statusBadge()
+      const stBg   = op.status === 'تنشيط النظام' ? '#fee2e2'
+                   : op.status === 'اشتراك جديد'  ? '#fef9c3'
+                   : op.status === 'قيد المعالجة' ? '#dbeafe' : '#d1fae5';
+      const stRing = op.status === 'تنشيط النظام' ? '#fecaca'
+                   : op.status === 'اشتراك جديد'  ? '#fde68a'
+                   : op.status === 'قيد المعالجة' ? '#bfdbfe' : '#a7f3d0';
+      const stTxt  = op.status === 'تنشيط النظام' ? '#b91c1c'
+                   : op.status === 'اشتراك جديد'  ? '#a16207'
+                   : op.status === 'قيد المعالجة' ? '#1d4ed8' : '#047857';
+      ctx.font = 'bold 11px Arial';
+      const sW = ctx.measureText(op.status).width + 16;
+      ctx.fillStyle = stBg; ctx.strokeStyle = stRing; ctx.lineWidth = 1;
+      drawRoundRectCanvas(ctx, colXs[4] - sW, y + 11, sW, 22, 11); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = stTxt; ctx.textAlign = 'right';
+      ctx.fillText(op.status, colXs[4] - 8, y + 27);
+      y += 44;
     });
-    y += 18;
+    y += 16;
   }
 
-  // Footer
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.fillRect(PAD, y + 10, W - PAD * 2, 1);
-  ctx.fillStyle = '#475569';
-  ctx.font = '13px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText('نظام إدارة المشتركين — Moshtarikeen Hub', W - PAD, y + 40);
+  // ── Footer ──
+  ctx.fillStyle = '#e2e8f0'; ctx.fillRect(PAD, y + 8, W - PAD * 2, 1);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '12px Arial'; ctx.textAlign = 'right';
+  ctx.fillText('نظام إدارة المشتركين — Moshtarikeen Hub', W - PAD, y + 32);
   ctx.textAlign = 'left';
-  ctx.fillText(`تاريخ التصدير: ${new Date().toLocaleString('ar-SA')}`, PAD, y + 40);
+  ctx.fillText(`تاريخ التصدير: ${new Date().toLocaleString('ar-SA')}`, PAD, y + 32);
 
   canvas.toBlob(blob => {
     if (!blob) return;
@@ -3653,8 +3705,7 @@ function createSubscriberVideo(
   };
 
   const FPS = 30;
-  // Phases (frames): title(60) + query(60) + searching(45) + results(225) + final(30) = 420
-  const TOTAL = 420;
+  const TOTAL = 420; // title(60)+query(60)+searching(45)+results(225)+final(30)
   let frame = 0;
 
   const fields = [
@@ -3666,22 +3717,32 @@ function createSubscriberVideo(
     { label: 'المنصة', value: found.platform },
   ].filter(f => f.value);
 
+  // Light-theme financials matching FinBox
   const financials = [
-    { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, color: '#3b82f6' },
-    { label: 'الأرباح', value: found.profits, color: '#10b981' },
-    { label: 'رسوم النظام', value: found.systemFees, color: '#f59e0b' },
+    { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, bg: '#eff6ff', ring: '#bfdbfe', color: '#1d4ed8' },
+    { label: 'الأرباح', value: found.profits, bg: '#ecfdf5', ring: '#a7f3d0', color: '#047857' },
+    { label: 'رسوم النظام', value: found.systemFees, bg: '#fff7ed', ring: '#fed7aa', color: '#ea580c' },
   ].filter(f => f.value > 0);
 
   function easeOut(t: number) { return 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3); }
   function easeInOut(t: number) { const c = Math.max(0, Math.min(1, t)); return c < 0.5 ? 2 * c * c : 1 - Math.pow(-2 * c + 2, 2) / 2; }
 
-  function drawBg() {
+  // Dark cinematic background (used for intro phases)
+  function drawDarkBg() {
     const bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#060d1a'); bg.addColorStop(1, '#0f172a');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     ctx.strokeStyle = 'rgba(59,130,246,0.05)'; ctx.lineWidth = 1;
     for (let x = 0; x < W; x += 64 * sc) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 64 * sc) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    for (let yy = 0; yy < H; yy += 64 * sc) { ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W, yy); ctx.stroke(); }
+  }
+
+  // Light AdminPanel background (used for results phase)
+  function drawLightBg() {
+    ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(148,163,184,0.07)'; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 48 * sc) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let yy = 0; yy < H; yy += 48 * sc) { ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W, yy); ctx.stroke(); }
   }
 
   function glow(x: number, y: number, r: number, col: string, a: number) {
@@ -3705,27 +3766,26 @@ function createSubscriberVideo(
     ctx.textAlign = align; ctx.fillText(text, x, y);
   }
 
-  // Phase 1: Title (frames 0-59)
+  // Phase 1: Title (frames 0-59) — dark cinematic
   function phase1(f: number) {
     const t = easeOut(f / 59);
-    drawBg();
+    drawDarkBg();
     glow(W / 2, H / 2, 300 * sc, 'rgb(59,130,246)', 0.12 * t);
     const logoR = 52 * sc;
     ctx.globalAlpha = t;
     ctx.fillStyle = 'rgba(29,78,216,0.3)';
     ctx.strokeStyle = 'rgba(99,102,241,0.6)'; ctx.lineWidth = 2 * sc;
-    ctx.beginPath(); ctx.arc(W / 2, H / 2 - 90 * sc, logoR, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W / 2, H / 2 - 90 * sc, logoR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     txt('م', W / 2, H / 2 - 90 * sc + 18 * sc, 40 * sc, '#60a5fa', 'center', true);
     txt('نظام إدارة المشتركين', W / 2, H / 2 + 20 * sc, 38 * sc, 'white', 'center', true);
     txt('لوحة تحكم إدارية متقدمة', W / 2, H / 2 + 62 * sc, 18 * sc, '#94a3b8', 'center');
     ctx.globalAlpha = 1;
   }
 
-  // Phase 2: Query input (frames 60-119)
+  // Phase 2: Query input (frames 60-119) — dark cinematic
   function phase2(f: number) {
     const t = easeOut(f / 59);
-    drawBg();
+    drawDarkBg();
     glow(W / 2, H * 0.38, 220 * sc, 'rgb(16,185,129)', 0.1);
     txt('الاستعلام عن المشترك', W / 2, H * 0.28, 30 * sc, 'white', 'center', true);
     txt('ابحث بالاسم أو الآيبان أو رقم الهاتف...', W / 2, H * 0.34, 15 * sc, '#64748b', 'center');
@@ -3743,8 +3803,7 @@ function createSubscriberVideo(
       ctx.fillRect(bX + bW - 14 - tw - 3, bY + 14 * sc, 2, 28 * sc);
     }
     if (t > 0.75) {
-      const bA = Math.min(1, (t - 0.75) / 0.25);
-      ctx.globalAlpha = bA;
+      ctx.globalAlpha = Math.min(1, (t - 0.75) / 0.25);
       const btnG = ctx.createLinearGradient(bX + bW + 12, 0, bX + bW + 116 * sc, 0);
       btnG.addColorStop(0, '#10b981'); btnG.addColorStop(1, '#06b6d4');
       ctx.fillStyle = btnG;
@@ -3754,22 +3813,19 @@ function createSubscriberVideo(
     }
   }
 
-  // Phase 3: Searching (frames 120-164)
+  // Phase 3: Searching (frames 120-164) — dark cinematic
   function phase3(f: number) {
     const t = easeInOut(f / 44);
-    drawBg();
+    drawDarkBg();
     glow(W / 2, H / 2, 260 * sc, 'rgb(59,130,246)', 0.15);
     txt('جارٍ البحث...', W / 2, H * 0.36, 26 * sc, '#94a3b8', 'center');
     const barW = 480 * sc, barH = 8 * sc, barX = (W - barW) / 2, barY = H * 0.44;
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    rrect(barX, barY, barW, barH, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(barX, barY, barW, barH, 4); ctx.fill();
     const fillW = barW * Math.min(1, t * 1.2);
     const barG = ctx.createLinearGradient(barX, 0, barX + fillW, 0);
     barG.addColorStop(0, '#10b981'); barG.addColorStop(1, '#06b6d4');
-    ctx.fillStyle = barG;
-    rrect(barX, barY, fillW, barH, 4); ctx.fill();
+    ctx.fillStyle = barG; rrect(barX, barY, fillW, barH, 4); ctx.fill();
     txt(`${Math.round(Math.min(100, t * 120))}%`, W / 2, H * 0.52, 22 * sc, '#10b981', 'center', true);
-    // Spinning dots
     const ang = frame * 0.12;
     for (let i = 0; i < 8; i++) {
       const a = ang + (i * Math.PI * 2) / 8;
@@ -3779,98 +3835,140 @@ function createSubscriberVideo(
     }
   }
 
-  // Phase 4: Results (frames 165-389)
+  // Phase 4: Results — LIGHT THEME matching AdminPanel exactly
   function phase4(f: number) {
     const t = easeOut(f / 224);
-    drawBg();
-    glow(W * 0.75, H * 0.3, 320 * sc, 'rgb(59,130,246)', 0.09);
-    const PAD = 55 * sc;
+    drawLightBg();
+    const PAD = 44 * sc;
+    let curY = 14 * sc;
 
-    // Subscriber header card
-    const cardH = 115 * sc, cardY = 35 * sc;
+    // ── Header bar (white, accent stripe) ──
+    const headerT = Math.min(1, t * 6);
+    ctx.globalAlpha = headerT;
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, W, 58 * sc);
+    ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, 57 * sc, W, 1);
+    const acG = ctx.createLinearGradient(0, 0, W, 0);
+    acG.addColorStop(0, '#34d399'); acG.addColorStop(0.35, '#2dd4bf'); acG.addColorStop(1, '#60a5fa');
+    ctx.fillStyle = acG; ctx.fillRect(0, 0, W, 4 * sc);
+    // Logo
+    ctx.fillStyle = '#ecfdf5'; ctx.strokeStyle = '#6ee7b7'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(W - PAD - 16 * sc, 29 * sc, 20 * sc, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#065f46'; ctx.font = `bold ${16 * sc}px Arial`; ctx.textAlign = 'center';
+    ctx.fillText('م', W - PAD - 16 * sc, 35 * sc);
+    txt('نظام إدارة المشتركين', W - PAD - 46 * sc, 28 * sc, 15 * sc, '#0f172a', 'right', true);
+    ctx.globalAlpha = 1;
+    curY = 68 * sc;
+
+    // ── Profile card ──
+    const cardH = 88 * sc;
     const cardT = Math.min(1, t * 4);
     ctx.globalAlpha = cardT;
-    ctx.fillStyle = 'rgba(59,130,246,0.1)';
-    rrect(PAD, cardY, W - PAD * 2, cardH, 16 * sc); ctx.fill();
-    ctx.strokeStyle = 'rgba(59,130,246,0.28)'; ctx.lineWidth = 1.5;
-    rrect(PAD, cardY, W - PAD * 2, cardH, 16 * sc); ctx.stroke();
-    // accent bar
-    const ag = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
-    ag.addColorStop(0, '#3b82f6'); ag.addColorStop(0.5, '#8b5cf6'); ag.addColorStop(1, '#06b6d4');
-    ctx.fillStyle = ag;
-    rrect(PAD, cardY, W - PAD * 2, 4 * sc, 2); ctx.fill();
-    // Avatar
-    ctx.fillStyle = 'rgba(59,130,246,0.25)';
-    ctx.strokeStyle = 'rgba(99,102,241,0.5)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(W - PAD - 40 * sc, cardY + 58 * sc, 40 * sc, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-    txt(found.name.charAt(0), W - PAD - 40 * sc, cardY + 74 * sc, 30 * sc, '#60a5fa', 'center', true);
-    txt(found.name, W - PAD - 94 * sc, cardY + 55 * sc, 28 * sc, 'white', 'right', true);
+    // Card white background
+    ctx.fillStyle = 'white';
+    ctx.shadowColor = 'rgba(0,0,0,0.06)'; ctx.shadowBlur = 8 * sc; ctx.shadowOffsetY = 2 * sc;
+    rrect(PAD, curY, W - PAD * 2, cardH, 14 * sc); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+    rrect(PAD, curY, W - PAD * 2, cardH, 14 * sc); ctx.stroke();
+    // Accent strip top
+    const pG = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
+    pG.addColorStop(0, '#34d399'); pG.addColorStop(0.4, '#2dd4bf'); pG.addColorStop(1, '#60a5fa');
+    ctx.fillStyle = pG;
+    ctx.fillRect(PAD, curY, W - PAD * 2, 4 * sc);
+    // Avatar (emerald→teal rounded square)
+    const avG = ctx.createLinearGradient(PAD + 14 * sc, curY + 10 * sc, PAD + 68 * sc, curY + 78 * sc);
+    avG.addColorStop(0, '#34d399'); avG.addColorStop(1, '#14b8a6');
+    ctx.fillStyle = avG;
+    rrect(PAD + 14 * sc, curY + 10 * sc, 58 * sc, 68 * sc, 12 * sc); ctx.fill();
+    // Person silhouette
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.beginPath(); ctx.arc(PAD + 43 * sc, curY + 31 * sc, 10 * sc, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(PAD + 43 * sc, curY + 61 * sc, 16 * sc, 10 * sc, 0, Math.PI, 0); ctx.fill();
+    // Verified dot
+    ctx.fillStyle = '#10b981'; ctx.strokeStyle = 'white'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(PAD + 66 * sc, curY + 70 * sc, 8 * sc, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // Name
+    txt(found.name, W - PAD - 12 * sc, curY + 40 * sc, 22 * sc, '#1e293b', 'right', true);
+    // Status badge
     if (found.subscriberStatus) {
-      ctx.fillStyle = 'rgba(16,185,129,0.2)'; ctx.strokeStyle = 'rgba(16,185,129,0.35)'; ctx.lineWidth = 1;
-      const sw = ctx.measureText(found.subscriberStatus).width;
-      rrect(W - PAD - 94 * sc - sw - 20, cardY + 68 * sc, sw + 20, 24 * sc, 12 * sc);
+      const stMap: Record<string, { bg: string; ring: string; txt2: string }> = {
+        'نشط':         { bg: '#ecfdf5', ring: '#a7f3d0', txt2: '#047857' },
+        'مشترك جديد': { bg: '#eff6ff', ring: '#bfdbfe', txt2: '#1d4ed8' },
+        'رسوم مستحقة':{ bg: '#fff7ed', ring: '#fed7aa', txt2: '#c2410c' },
+        'توزيع أرباح':{ bg: '#faf5ff', ring: '#e9d5ff', txt2: '#7e22ce' },
+        'معلق':        { bg: '#f1f5f9', ring: '#cbd5e1', txt2: '#475569' },
+        'موقوف':       { bg: '#fef2f2', ring: '#fecaca', txt2: '#991b1b' },
+      };
+      const stC = stMap[found.subscriberStatus] ?? { bg: '#f1f5f9', ring: '#cbd5e1', txt2: '#475569' };
+      ctx.font = `bold ${11 * sc}px Arial`;
+      const sw = ctx.measureText(found.subscriberStatus).width + 14 * sc;
+      const nameW = ctx.measureText(found.name).width;
+      ctx.fillStyle = stC.bg; ctx.strokeStyle = stC.ring; ctx.lineWidth = 1;
+      rrect(W - PAD - 12 * sc - nameW - 10 * sc - sw, curY + 26 * sc, sw, 20 * sc, 10 * sc);
       ctx.fill(); ctx.stroke();
-      txt(found.subscriberStatus, W - PAD - 104 * sc, cardY + 85 * sc, 13 * sc, '#34d399', 'right');
+      txt(found.subscriberStatus, W - PAD - 12 * sc - nameW - 18 * sc, curY + 40 * sc, 11 * sc, stC.txt2, 'right', true);
     }
-    if (found.joinDate) txt(`عضو منذ: ${found.joinDate}`, W - PAD - 94 * sc, cardY + 102 * sc, 12 * sc, '#64748b', 'right');
+    if (found.joinDate) txt(`عضو منذ: ${found.joinDate}`, W - PAD - 12 * sc, curY + 62 * sc, 11 * sc, '#94a3b8', 'right');
     ctx.globalAlpha = 1;
+    curY += cardH + 14 * sc;
 
-    let curY = cardY + cardH + 22 * sc;
-
-    // Fields
-    const fieldsN = Math.floor(fields.length * Math.min(1, (t - 0.15) * 3));
+    // ── Fields grid (MiniInfo: bg-slate-50 ring-slate-200) ──
+    const fieldsN = Math.floor(fields.length * Math.min(1, (t - 0.1) * 3));
     if (fieldsN > 0) {
-      txt('البيانات الشخصية', W - PAD, curY + 14, 14 * sc, '#64748b', 'right', true);
-      curY += 32 * sc;
-      const colW = (W - PAD * 2) / 3;
+      const FCOLS = 4, gap = 8 * sc;
+      const fw = (W - PAD * 2 - gap * (FCOLS - 1)) / FCOLS;
       fields.slice(0, fieldsN).forEach((fld, i) => {
-        const col = i % 3, row = Math.floor(i / 3);
-        const fx = W - PAD - col * colW, fy = curY + row * 82 * sc;
-        const fp = Math.min(1, (t - 0.15 - i * 0.04) * 4);
+        const col = i % FCOLS, row = Math.floor(i / FCOLS);
+        const fx = W - PAD - col * (fw + gap) - fw;
+        const fy = curY + row * 68 * sc;
+        const fp = Math.min(1, (t - 0.1 - i * 0.04) * 4);
         ctx.globalAlpha = fp;
-        ctx.fillStyle = 'rgba(255,255,255,0.05)';
-        rrect(fx - colW + 10, fy, colW - 20, 70 * sc, 10 * sc); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
-        rrect(fx - colW + 10, fy, colW - 20, 70 * sc, 10 * sc); ctx.stroke();
-        txt(fld.label, fx - 16, fy + 22 * sc, 12 * sc, '#94a3b8', 'right');
-        const v = fld.value.length > 22 ? fld.value.slice(0, 20) + '…' : fld.value;
-        txt(v, fx - 16, fy + 52 * sc, 14 * sc, 'white', 'right', true);
+        ctx.fillStyle = '#f8fafc';
+        ctx.shadowColor = 'rgba(0,0,0,0.03)'; ctx.shadowBlur = 3 * sc; ctx.shadowOffsetY = sc;
+        rrect(fx, fy, fw, 58 * sc, 10 * sc); ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+        rrect(fx, fy, fw, 58 * sc, 10 * sc); ctx.stroke();
+        txt(fld.label, fx + fw - 10 * sc, fy + 19 * sc, 10 * sc, '#94a3b8', 'right');
+        const v = fld.value.length > 20 ? fld.value.slice(0, 18) + '…' : fld.value;
+        txt(v, fx + fw - 10 * sc, fy + 44 * sc, 12 * sc, '#334155', 'right', true);
         ctx.globalAlpha = 1;
       });
-      curY += Math.ceil(fields.length / 3) * 82 * sc + 16 * sc;
+      curY += Math.ceil(fields.length / FCOLS) * 68 * sc + 12 * sc;
     }
 
-    // Financials
-    if (t > 0.55 && financials.length > 0) {
-      const finT = Math.min(1, (t - 0.55) * 3);
-      ctx.globalAlpha = finT;
-      txt('الملخص المالي', W - PAD, curY + 14, 14 * sc, '#64748b', 'right', true);
-      curY += 32 * sc;
-      const fColW = (W - PAD * 2) / financials.length;
+    // ── Financials (FinBox light colors) ──
+    if (t > 0.5 && financials.length > 0) {
+      const finT = Math.min(1, (t - 0.5) * 3);
+      const gap = 8 * sc;
+      const finW2 = (W - PAD * 2 - gap * (financials.length - 1)) / financials.length;
       financials.forEach((fin, i) => {
-        const fx = W - PAD - i * fColW;
-        ctx.fillStyle = `${fin.color}20`;
-        rrect(fx - fColW + 10, curY, fColW - 20, 84 * sc, 12 * sc); ctx.fill();
-        ctx.strokeStyle = `${fin.color}45`; ctx.lineWidth = 1.5;
-        rrect(fx - fColW + 10, curY, fColW - 20, 84 * sc, 12 * sc); ctx.stroke();
-        txt(fin.label, fx - fColW / 2, curY + 28 * sc, 14 * sc, fin.color, 'center');
-        txt(`${fin.value.toLocaleString()} ر.س`, fx - fColW / 2, curY + 65 * sc, 24 * sc, fin.color, 'center', true);
+        const fx = W - PAD - i * (finW2 + gap) - finW2;
+        const fp = Math.min(1, finT * (1 + i * 0.2));
+        ctx.globalAlpha = Math.min(1, fp);
+        ctx.fillStyle = fin.bg;
+        ctx.shadowColor = 'rgba(0,0,0,0.03)'; ctx.shadowBlur = 4 * sc; ctx.shadowOffsetY = sc;
+        rrect(fx, curY, finW2, 72 * sc, 12 * sc); ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+        ctx.strokeStyle = fin.ring; ctx.lineWidth = 1;
+        rrect(fx, curY, finW2, 72 * sc, 12 * sc); ctx.stroke();
+        txt(fin.label, fx + finW2 / 2, curY + 24 * sc, 12 * sc, '#64748b', 'center');
+        txt(`${fin.value.toLocaleString()} ر.س`, fx + finW2 / 2, curY + 56 * sc, 18 * sc, fin.color, 'center', true);
+        ctx.globalAlpha = 1;
       });
-      ctx.globalAlpha = 1;
     }
   }
 
-  // Phase 5: Final (frames 390-419)
+  // Phase 5: Final success (frames 390-419)
   function phase5(f: number) {
     const t = easeOut(f / 29);
-    drawBg();
+    drawDarkBg();
     glow(W / 2, H / 2, 400 * sc, 'rgb(16,185,129)', 0.14 * t);
     ctx.globalAlpha = t;
     ctx.fillStyle = 'rgba(16,185,129,0.18)';
     ctx.strokeStyle = 'rgba(16,185,129,0.5)'; ctx.lineWidth = 2 * sc;
-    ctx.beginPath(); ctx.arc(W / 2, H * 0.34, 58 * sc, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W / 2, H * 0.34, 58 * sc, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     txt('✓', W / 2, H * 0.34 + 22 * sc, 46 * sc, '#10b981', 'center', true);
     txt('اكتملت عملية الاستعلام', W / 2, H * 0.54, 30 * sc, 'white', 'center', true);
     txt(`المشترك: ${found.name}`, W / 2, H * 0.62, 20 * sc, '#94a3b8', 'center');
