@@ -3,7 +3,7 @@
  * لوحة تحكم إدارية متقدمة | بيانات محلية فقط (localStorage)
  */
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Users, TrendingUp, Wallet, Search, LayoutDashboard, Settings,
   Bell, LogOut, CheckCircle2, AlertCircle, CreditCard, Phone, User,
@@ -14,11 +14,14 @@ import {
   FileText, Banknote, Star, PanelLeftClose, PanelLeftOpen, SlidersHorizontal,
   Globe, Cpu, BarChart3, Edit3, Type, CalendarClock, Sparkles, Zap, Layers,
   Crown, Rocket, TrendingDown, DollarSign, PieChart as PieChartIcon, LineChart,
+  Moon, Sun, Command, FileDown, Upload, RotateCcw, HardDrive, PrinterIcon,
+  ChevronUp, BarChart2, BookOpen, Keyboard,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell,
+  ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -579,7 +582,7 @@ const EMPTY_OP: Omit<Operation, 'id'> = {
 // Root
 // ─────────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'admin' | 'addOperations' | 'addSubscriber' | 'systemAdmin' | 'advanced';
+type Tab = 'dashboard' | 'admin' | 'addOperations' | 'addSubscriber' | 'systemAdmin' | 'advanced' | 'reports' | 'settings';
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -587,6 +590,28 @@ export default function Index() {
   const [subscribers, setSubscribers] = useLocalStorage<Subscriber[]>('msub_v2', INITIAL_SUBSCRIBERS);
   const [operations, setOperations] = useLocalStorage<Operation[]>('mops_v2', INITIAL_OPERATIONS);
   const [systemConfig, setSystemConfig] = useLocalStorage<SystemConfig>('msys_config_v2', DEFAULT_SYSTEM_CONFIG);
+
+  // ── Dark Mode ──
+  const [isDark, setIsDark] = useLocalStorage<boolean>('msub_darkmode', false);
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
+
+  // ── Command Palette ──
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdQuery, setCmdQuery] = useState('');
+
+  // ── Keyboard Shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setCmdOpen(v => !v); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); setActiveTab('addSubscriber'); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o') { e.preventDefault(); setActiveTab('addOperations'); }
+      if (e.key === 'Escape') { setCmdOpen(false); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const updateConfig = (partial: Partial<SystemConfig>) => {
     setSystemConfig({ ...systemConfig, ...partial });
@@ -615,6 +640,8 @@ export default function Index() {
     { tab: 'admin', icon: <Shield size={20} />, label: sn.admin },
     { tab: 'addOperations', icon: <ClipboardList size={20} />, label: sn.addOperations },
     { tab: 'addSubscriber', icon: <UserPlus size={20} />, label: sn.addSubscriber },
+    { tab: 'reports', icon: <BarChart2 size={20} />, label: 'التقارير' },
+    { tab: 'settings', icon: <Settings size={20} />, label: 'الإعدادات' },
   ];
 
   const isAdvanced = activeTab === 'advanced';
@@ -795,12 +822,24 @@ export default function Index() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Command Palette trigger */}
+            <button onClick={() => setCmdOpen(true)}
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors text-slate-500 text-xs border border-slate-200">
+              <Command size={12} />
+              <span>بحث سريع</span>
+              <kbd className="text-[10px] bg-white border border-slate-200 rounded px-1">⌘K</kbd>
+            </button>
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-500">
               <CalendarClock size={12} /><span>{systemDisplayDate}</span>
             </div>
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-500">
               <Users size={12} /><span>{subscribers.length} مشترك</span>
             </div>
+            {/* Dark Mode Toggle */}
+            <button onClick={() => setIsDark(!isDark)}
+              className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors text-slate-600" title={isDark ? 'الوضع النهاري' : 'الوضع الليلي'}>
+              {isDark ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
             <Button variant="outline" size="icon" className="rounded-full relative h-8 w-8 border-slate-200">
               <Bell size={15} />
               <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full border border-white" />
@@ -870,8 +909,44 @@ export default function Index() {
               />
             </motion.div>
           )}
+          {activeTab === 'reports' && (
+            <motion.div key="reports" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+              <ReportsTab subscribers={subscribers} operations={operations} />
+            </motion.div>
+          )}
+          {activeTab === 'settings' && (
+            <motion.div key="settings" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+              <SettingsTab
+                isDark={isDark}
+                onDarkToggle={() => setIsDark(!isDark)}
+                subscribers={subscribers}
+                operations={operations}
+                systemConfig={systemConfig}
+                onSubscribersChange={setSubscribers}
+                onOperationsChange={setOperations}
+                onConfigChange={updateConfig}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
+
+      {/* ── Command Palette Overlay ── */}
+      <AnimatePresence>
+        {cmdOpen && (
+          <CommandPalette
+            open={cmdOpen}
+            query={cmdQuery}
+            onQueryChange={setCmdQuery}
+            onClose={() => { setCmdOpen(false); setCmdQuery(''); }}
+            subscribers={subscribers}
+            operations={operations}
+            onNavigate={(tab) => { setActiveTab(tab as Tab); setCmdOpen(false); setCmdQuery(''); }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1140,21 +1215,25 @@ function SystemAdminTab({ systemConfig, onConfigChange, subscribersCount, sectio
   const saveDate = () => {
     onConfigChange({ systemDate: dateInput });
     flash('تم تحديث تاريخ النظام');
+    toast.success('تم تحديث تاريخ النظام');
   };
 
   const saveCards = () => {
     onConfigChange({ cardOverrides: co });
     flash('تم حفظ تعديلات البطاقات');
+    toast.success('تم حفظ تعديلات البطاقات');
   };
 
   const saveNames = () => {
     onConfigChange({ sectionNames: sn });
     flash('تم تحديث أسماء الأقسام');
+    toast.success('تم تحديث أسماء الأقسام');
   };
 
   const saveText = () => {
     onConfigChange({ institutionalText: instText });
     flash('تم حفظ النص المؤسسي');
+    toast.success('تم حفظ النص المؤسسي');
   };
 
   return (
@@ -1862,14 +1941,32 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames, sec
   const handleSave = () => {
     if (editId) {
       onOperationsChange(operations.map(o => o.id === editId ? { id: editId, ...form } : o));
+      toast.success('تم تحديث العملية بنجاح');
     } else {
       onOperationsChange([{ id: uid(), ...form }, ...operations]);
+      toast.success('تمت إضافة العملية بنجاح');
     }
     setIsOpen(false);
     setPage(1);
   };
 
-  const doDelete = (id: string) => { onOperationsChange(operations.filter(o => o.id !== id)); setDeleteId(null); };
+  const doDelete = (id: string) => {
+    onOperationsChange(operations.filter(o => o.id !== id));
+    setDeleteId(null);
+    toast.error('تم حذف العملية');
+  };
+
+  const exportCSV = () => {
+    const header = ['الاسم', 'العملية', 'المبلغ', 'التاريخ', 'الحالة'];
+    const rows = filtered.map(o => [o.subscriberName, o.operation, o.amount, o.date, o.status]);
+    const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `العمليات_${new Date().toLocaleDateString('ar-SA').replace(/\//g,'_')}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success('تم تصدير العمليات بنجاح');
+  };
 
   return (
     <>
@@ -1878,9 +1975,14 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames, sec
           <h2 className="text-2xl font-black text-slate-800">{sectionName}</h2>
           <p className="text-sm text-slate-400 mt-0.5">{operations.length} عملية مسجّلة في النظام</p>
         </div>
-        <Button onClick={openAdd} className="bg-emerald-600 hover:bg-emerald-700 gap-2 shadow-sm">
-          <Plus size={16} /> إضافة عملية
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={exportCSV} variant="outline" size="sm" className="gap-1.5 border-slate-200 text-slate-600 h-9">
+            <FileDown size={14} /> تصدير CSV
+          </Button>
+          <Button onClick={openAdd} className="bg-emerald-600 hover:bg-emerald-700 gap-2 shadow-sm">
+            <Plus size={16} /> إضافة عملية
+          </Button>
+        </div>
       </div>
 
       <Card className="border-none shadow-sm ring-1 ring-slate-200">
@@ -2120,8 +2222,10 @@ function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName }: {
   const handleSave = () => {
     if (editId) {
       onSubscribersChange(subscribers.map(s => s.id === editId ? { id: editId, ...form } : s));
+      toast.success('تم تحديث بيانات المشترك');
     } else {
       onSubscribersChange([...subscribers, { id: uid(), ...form }]);
+      toast.success('تمت إضافة المشترك بنجاح');
     }
     setForm({ ...EMPTY_SUB });
     setEditId(null);
@@ -2138,7 +2242,24 @@ function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName }: {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const doDelete = (id: string) => { onSubscribersChange(subscribers.filter(s => s.id !== id)); setDeleteId(null); setExpandedId(null); };
+  const exportSubscribersCSV = () => {
+    const header = ['الاسم', 'الهاتف', 'IBAN', 'مبلغ الاشتراك', 'الأرباح', 'الرسوم', 'الحالة', 'تاريخ الانضمام', 'البنك', 'العملة', 'المنصة'];
+    const rows = subscribers.map(s => [s.name, s.phone, s.iban, s.subscriptionAmount, s.profits, s.systemFees, s.subscriberStatus, s.joinDate, s.bankName, s.currency, s.platform]);
+    const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `المشتركين_${new Date().toLocaleDateString('ar-SA').replace(/\//g,'_')}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success('تم تصدير بيانات المشتركين');
+  };
+
+  const doDelete = (id: string) => {
+    onSubscribersChange(subscribers.filter(s => s.id !== id));
+    setDeleteId(null);
+    setExpandedId(null);
+    toast.error('تم حذف المشترك');
+  };
   const cancelEdit = () => { setForm({ ...EMPTY_SUB }); setEditId(null); setCustomBank(false); };
 
   const f = form;
@@ -2150,11 +2271,16 @@ function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName }: {
           <h2 className="text-2xl font-black text-slate-800">{editId ? 'تعديل مشترك' : sectionName}</h2>
           <p className="text-sm text-slate-400 mt-0.5">{subscribers.length} مشترك مسجّل</p>
         </div>
-        {editId && (
-          <Button variant="outline" onClick={cancelEdit} className="gap-1.5 border-slate-200 text-slate-600">
-            <X size={14} /> إلغاء التعديل
+        <div className="flex items-center gap-2">
+          <Button onClick={exportSubscribersCSV} variant="outline" size="sm" className="gap-1.5 border-slate-200 text-slate-600 h-9">
+            <FileDown size={14} /> تصدير CSV
           </Button>
-        )}
+          {editId && (
+            <Button variant="outline" onClick={cancelEdit} className="gap-1.5 border-slate-200 text-slate-600">
+              <X size={14} /> إلغاء التعديل
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Form */}
@@ -3533,5 +3659,510 @@ function AdvancedSubscribers({ subscribers, operations, onSubscribersChange }: {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reports Tab — التقارير
+// ─────────────────────────────────────────────────────────────
+
+function ReportsTab({ subscribers, operations }: { subscribers: Subscriber[]; operations: Operation[] }) {
+  const monthlyData = useMemo(() => {
+    const months: Record<string, { month: string; مشتركون: number; عمليات: number; إيرادات: number }> = {};
+    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    subscribers.forEach(s => {
+      if (!s.joinDate) return;
+      const d = new Date(s.joinDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if (!months[key]) months[key] = { month: monthNames[d.getMonth()], مشتركون: 0, عمليات: 0, إيرادات: 0 };
+      months[key].مشتركون++;
+      months[key].إيرادات += s.subscriptionAmount;
+    });
+    operations.forEach(op => {
+      if (!op.date) return;
+      const d = new Date(op.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if (!months[key]) months[key] = { month: String(d.getMonth()+1), مشتركون: 0, عمليات: 0, إيرادات: 0 };
+      months[key].عمليات++;
+    });
+    return Object.entries(months).sort(([a],[b]) => a.localeCompare(b)).slice(-8).map(([,v]) => v);
+  }, [subscribers, operations]);
+
+  const statusDist = useMemo(() => {
+    const map: Record<string, number> = {};
+    subscribers.forEach(s => { map[s.subscriberStatus] = (map[s.subscriberStatus] || 0) + 1; });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [subscribers]);
+
+  const platformDist = useMemo(() => {
+    const map: Record<string, number> = {};
+    subscribers.forEach(s => { if (s.platform) map[s.platform] = (map[s.platform] || 0) + 1; });
+    return Object.entries(map).sort(([,a],[,b]) => b-a).slice(0,8).map(([name, value]) => ({ name, value }));
+  }, [subscribers]);
+
+  const opsDist = useMemo(() => {
+    const map: Record<string, number> = {};
+    operations.forEach(o => { map[o.status] = (map[o.status] || 0) + 1; });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [operations]);
+
+  const PIE_COLORS = ['#10b981','#3b82f6','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316','#84cc16'];
+
+  const totalRevenue = subscribers.reduce((a, s) => a + s.subscriptionAmount, 0);
+  const totalProfits = subscribers.reduce((a, s) => a + s.profits, 0);
+  const totalFees = subscribers.reduce((a, s) => a + s.systemFees, 0);
+  const activeRate = subscribers.length ? Math.round(subscribers.filter(s => s.subscriberStatus === 'نشط').length / subscribers.length * 100) : 0;
+
+  return (
+    <>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-black text-slate-800">التقارير والإحصائيات</h2>
+          <p className="text-sm text-slate-400 mt-0.5">تحليل شامل لبيانات النظام</p>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'إجمالي الاشتراكات', value: `${totalRevenue.toLocaleString()} ر.س`, icon: <Wallet size={18} className="text-emerald-600" />, bg: 'bg-emerald-50', color: 'text-emerald-700' },
+          { label: 'إجمالي الأرباح', value: `${totalProfits.toLocaleString()} ر.س`, icon: <TrendingUp size={18} className="text-blue-600" />, bg: 'bg-blue-50', color: 'text-blue-700' },
+          { label: 'الرسوم المستحقة', value: `${totalFees.toLocaleString()} ر.س`, icon: <AlertCircle size={18} className="text-orange-500" />, bg: 'bg-orange-50', color: 'text-orange-700' },
+          { label: 'نسبة النشاط', value: `${activeRate}%`, icon: <Activity size={18} className="text-purple-600" />, bg: 'bg-purple-50', color: 'text-purple-700' },
+        ].map((c, i) => (
+          <Card key={i} className={`${c.bg} border-none shadow-sm ring-1 ring-slate-200`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">{c.icon}<span className="text-xs text-slate-500">{c.label}</span></div>
+              <p className={`text-xl font-black ${c.color}`}>{c.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Monthly Chart */}
+      <Card className="border-none shadow-sm ring-1 ring-slate-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+            <BarChart2 size={18} className="text-blue-500" /> المشتركون الشهريون والعمليات
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="مشتركون" fill="#10b981" radius={[4,4,0,0]} />
+              <Bar dataKey="عمليات" fill="#3b82f6" radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Status Distribution */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <PieChartIcon size={18} className="text-purple-500" /> توزيع حالات المشتركين
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={statusDist} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                  {statusDist.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Platform Distribution */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <Globe size={18} className="text-cyan-500" /> توزيع منصات التداول
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={platformDist} layout="vertical" margin={{ right: 20, left: 60 }}>
+                <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} width={55} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                <Bar dataKey="value" fill="#06b6d4" radius={[0,4,4,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Operations Status */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <ClipboardList size={18} className="text-emerald-500" /> حالات العمليات
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 pt-2">
+              {opsDist.map((item, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-sm text-slate-600 w-32 text-right">{item.name}</span>
+                  <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${operations.length ? (item.value / operations.length * 100) : 0}%` }}
+                      transition={{ duration: 0.8 }} className="h-full rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  </div>
+                  <span className="text-sm font-black text-slate-700 w-10">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Subscribers by amount */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <Star size={18} className="text-amber-500" /> أعلى المشتركين اشتراكاً
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {[...subscribers].sort((a,b) => b.subscriptionAmount - a.subscriptionAmount).slice(0,5).map((s, i) => (
+                <div key={s.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50">
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-white ${i===0?'bg-amber-400':i===1?'bg-slate-400':i===2?'bg-orange-400':'bg-slate-300'}`}>{i+1}</span>
+                  <span className="flex-1 text-sm font-medium text-slate-700 truncate">{s.name}</span>
+                  <span className="text-sm font-black text-emerald-600">{s.subscriptionAmount.toLocaleString()} ر.س</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Settings Tab — الإعدادات
+// ─────────────────────────────────────────────────────────────
+
+function SettingsTab({ isDark, onDarkToggle, subscribers, operations, systemConfig, onSubscribersChange, onOperationsChange, onConfigChange }: {
+  isDark: boolean;
+  onDarkToggle: () => void;
+  subscribers: Subscriber[];
+  operations: Operation[];
+  systemConfig: SystemConfig;
+  onSubscribersChange: (s: Subscriber[]) => void;
+  onOperationsChange: (o: Operation[]) => void;
+  onConfigChange: (p: Partial<SystemConfig>) => void;
+}) {
+  const storageSize = useMemo(() => {
+    let total = 0;
+    for (const key in localStorage) {
+      if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
+        total += (localStorage[key].length + key.length) * 2;
+      }
+    }
+    return (total / 1024).toFixed(1);
+  }, []);
+
+  const exportBackup = () => {
+    const data = { subscribers, operations, systemConfig, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `backup_moshtarikeen_${new Date().toLocaleDateString('ar-SA').replace(/\//g,'_')}.json`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success('تم تصدير النسخة الاحتياطية');
+  };
+
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const importBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (data.subscribers) onSubscribersChange(data.subscribers);
+        if (data.operations) onOperationsChange(data.operations);
+        if (data.systemConfig) onConfigChange(data.systemConfig);
+        toast.success('تم استيراد النسخة الاحتياطية بنجاح');
+      } catch {
+        toast.error('ملف غير صالح');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const resetAll = () => {
+    if (!confirm('تحذير: سيتم حذف جميع البيانات وإعادة تعيين النظام. هل أنت متأكد؟')) return;
+    localStorage.removeItem('msub_v2');
+    localStorage.removeItem('mops_v2');
+    localStorage.removeItem('msys_config_v2');
+    toast.success('تم إعادة تعيين النظام — سيتم تحديث الصفحة');
+    setTimeout(() => window.location.reload(), 1500);
+  };
+
+  return (
+    <>
+      <div>
+        <h2 className="text-2xl font-black text-slate-800">الإعدادات</h2>
+        <p className="text-sm text-slate-400 mt-0.5">تخصيص النظام والبيانات</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Appearance */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-slate-400 to-slate-600" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <Moon size={18} className="text-slate-600" /> المظهر
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+              <div>
+                <p className="text-sm font-bold text-slate-700">الوضع الليلي</p>
+                <p className="text-xs text-slate-400 mt-0.5">تغيير مظهر النظام إلى الوضع الداكن</p>
+              </div>
+              <button onClick={onDarkToggle}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${isDark ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all duration-300 ${isDark ? 'right-1' : 'left-1'}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+              <div>
+                <p className="text-sm font-bold text-slate-700">اختصارات لوحة المفاتيح</p>
+                <p className="text-xs text-slate-400 mt-0.5">اضغط ⌘K للبحث السريع</p>
+              </div>
+              <div className="flex gap-1">
+                <kbd className="text-xs bg-white border border-slate-200 rounded px-2 py-1 text-slate-500">⌘K</kbd>
+                <kbd className="text-xs bg-white border border-slate-200 rounded px-2 py-1 text-slate-500">⌘N</kbd>
+                <kbd className="text-xs bg-white border border-slate-200 rounded px-2 py-1 text-slate-500">⌘O</kbd>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Storage */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-blue-400 to-cyan-400" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <HardDrive size={18} className="text-blue-500" /> التخزين
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {[
+              { label: 'المشتركون', value: subscribers.length, unit: 'مشترك', color: 'text-emerald-600' },
+              { label: 'العمليات', value: operations.length, unit: 'عملية', color: 'text-blue-600' },
+              { label: 'حجم البيانات', value: storageSize, unit: 'كيلوبايت', color: 'text-orange-600' },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 ring-1 ring-slate-100">
+                <span className="text-sm text-slate-600">{item.label}</span>
+                <span className={`text-sm font-black ${item.color}`}>{item.value} {item.unit}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Backup & Restore */}
+        <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-emerald-400 to-teal-400" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <Database size={18} className="text-emerald-500" /> النسخ الاحتياطي والاستعادة
+            </CardTitle>
+            <CardDescription className="text-xs">تصدير كامل البيانات أو استيرادها من ملف JSON</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button onClick={exportBackup} className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700">
+              <FileDown size={16} /> تصدير نسخة احتياطية (JSON)
+            </Button>
+            <input ref={importRef} type="file" accept=".json" className="hidden" onChange={importBackup} />
+            <Button onClick={() => importRef.current?.click()} variant="outline" className="w-full gap-2 border-slate-200 text-slate-600">
+              <Upload size={16} /> استيراد من ملف JSON
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={() => {
+                const header = ['الاسم','الهاتف','IBAN','الاشتراك','الأرباح','الرسوم','الحالة','التاريخ'];
+                const rows = subscribers.map(s => [s.name,s.phone,s.iban,s.subscriptionAmount,s.profits,s.systemFees,s.subscriberStatus,s.joinDate]);
+                const csv = [header,...rows].map(r=>r.join(',')).join('\n');
+                const blob = new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href=url; a.download='المشتركين.csv'; a.click(); URL.revokeObjectURL(url);
+                toast.success('تم تصدير المشتركين');
+              }} variant="outline" size="sm" className="gap-1 border-slate-200 text-slate-600 text-xs">
+                <FileDown size={12} /> مشتركون CSV
+              </Button>
+              <Button onClick={() => {
+                const header = ['الاسم','العملية','المبلغ','التاريخ','الحالة'];
+                const rows = operations.map(o => [o.subscriberName,o.operation,o.amount,o.date,o.status]);
+                const csv = [header,...rows].map(r=>r.join(',')).join('\n');
+                const blob = new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href=url; a.download='العمليات.csv'; a.click(); URL.revokeObjectURL(url);
+                toast.success('تم تصدير العمليات');
+              }} variant="outline" size="sm" className="gap-1 border-slate-200 text-slate-600 text-xs">
+                <FileDown size={12} /> عمليات CSV
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-none shadow-sm ring-1 ring-red-200 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-red-400 to-rose-500" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+              <AlertTriangle size={18} className="text-red-500" /> منطقة الخطر
+            </CardTitle>
+            <CardDescription className="text-xs text-red-500">هذه الإجراءات لا يمكن التراجع عنها</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={resetAll} variant="outline" className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50">
+              <RotateCcw size={16} /> إعادة تعيين النظام بالكامل
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Command Palette — لوحة البحث السريع
+// ─────────────────────────────────────────────────────────────
+
+function CommandPalette({ open, query, onQueryChange, onClose, subscribers, operations, onNavigate }: {
+  open: boolean;
+  query: string;
+  onQueryChange: (q: string) => void;
+  onClose: () => void;
+  subscribers: Subscriber[];
+  operations: Operation[];
+  onNavigate: (tab: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+  }, [open]);
+
+  const navCommands = [
+    { icon: <LayoutDashboard size={14} />, label: 'لوحة التحكم', tab: 'dashboard' },
+    { icon: <Shield size={14} />, label: 'نظام الاستعلام', tab: 'admin' },
+    { icon: <ClipboardList size={14} />, label: 'سجل العمليات', tab: 'addOperations' },
+    { icon: <UserPlus size={14} />, label: 'إضافة مشترك', tab: 'addSubscriber' },
+    { icon: <SlidersHorizontal size={14} />, label: 'إدارة النظام', tab: 'systemAdmin' },
+    { icon: <Crown size={14} />, label: 'النظام المتقدم', tab: 'advanced' },
+    { icon: <BarChart2 size={14} />, label: 'التقارير', tab: 'reports' },
+    { icon: <Settings size={14} />, label: 'الإعدادات', tab: 'settings' },
+  ];
+
+  const q = query.trim().toLowerCase();
+  const filteredNav = q ? navCommands.filter(c => c.label.includes(q) || c.tab.includes(q)) : navCommands;
+  const filteredSubs = q.length >= 2 ? subscribers.filter(s =>
+    s.name.toLowerCase().includes(q) || s.phone.includes(q)
+  ).slice(0, 5) : [];
+  const filteredOps = q.length >= 2 ? operations.filter(o =>
+    o.subscriberName.toLowerCase().includes(q) || o.operation.includes(q)
+  ).slice(0, 3) : [];
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-16 px-4"
+      style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-200"
+        onClick={e => e.stopPropagation()}>
+        {/* Search Input */}
+        <div className="flex items-center gap-3 p-4 border-b border-slate-100">
+          <Search size={18} className="text-slate-400 flex-shrink-0" />
+          <input ref={inputRef} value={query} onChange={e => onQueryChange(e.target.value)}
+            placeholder="بحث في النظام... (اكتب للبدء)"
+            className="flex-1 text-sm text-slate-700 placeholder:text-slate-400 outline-none bg-transparent text-right" dir="rtl" />
+          <kbd className="text-[10px] bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-400">ESC</kbd>
+        </div>
+
+        {/* Results */}
+        <div className="max-h-[420px] overflow-y-auto p-2" dir="rtl">
+          {/* Navigation */}
+          {filteredNav.length > 0 && (
+            <div className="mb-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-1">التنقل</p>
+              {filteredNav.map(cmd => (
+                <button key={cmd.tab} onClick={() => onNavigate(cmd.tab)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 transition-colors text-right">
+                  <span className="text-slate-400">{cmd.icon}</span>
+                  {cmd.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Subscribers */}
+          {filteredSubs.length > 0 && (
+            <div className="mb-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-1">مشتركون</p>
+              {filteredSubs.map(s => (
+                <button key={s.id} onClick={() => onNavigate('admin')}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm hover:bg-slate-50 transition-colors text-right">
+                  <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <User size={12} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-700">{s.name}</p>
+                    <p className="text-xs text-slate-400">{s.phone}</p>
+                  </div>
+                  <span className="mr-auto">{subStatusBadge(s.subscriberStatus)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Operations */}
+          {filteredOps.length > 0 && (
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-1">عمليات</p>
+              {filteredOps.map(o => (
+                <button key={o.id} onClick={() => onNavigate('addOperations')}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm hover:bg-slate-50 transition-colors text-right">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <ClipboardList size={12} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-700">{o.subscriberName} — {o.operation}</p>
+                    <p className="text-xs text-slate-400">{o.amount} · {o.date}</p>
+                  </div>
+                  <span className="mr-auto">{statusBadge(o.status)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {filteredNav.length === 0 && filteredSubs.length === 0 && filteredOps.length === 0 && (
+            <div className="py-10 text-center text-slate-400">
+              <Search size={32} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">لا توجد نتائج لـ "{query}"</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 flex items-center gap-4 text-xs text-slate-400">
+          <span className="flex items-center gap-1"><kbd className="bg-white border border-slate-200 rounded px-1">↵</kbd> تنفيذ</span>
+          <span className="flex items-center gap-1"><kbd className="bg-white border border-slate-200 rounded px-1">ESC</kbd> إغلاق</span>
+          <span className="flex items-center gap-1"><Keyboard size={10} /> {subscribers.length} مشترك · {operations.length} عملية</span>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
