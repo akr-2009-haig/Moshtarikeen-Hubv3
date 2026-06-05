@@ -95,6 +95,11 @@ interface SystemConfig {
     pendingFees: string;
     activationOps: string;
   };
+  queryCardOverrides: {
+    totalSubscribers: string;
+    activeCount: string;
+    pendingFees: string;
+  };
   institutionalText: string;
   systemDate: string;
 }
@@ -399,6 +404,11 @@ const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
     totalSubsCount: '',
     pendingFees: '',
     activationOps: '',
+  },
+  queryCardOverrides: {
+    totalSubscribers: '',
+    activeCount: '',
+    pendingFees: '',
   },
   institutionalText: '',
   systemDate: '',
@@ -875,13 +885,15 @@ export default function Index() {
                 onConfigChange={updateConfig}
                 subscribersCount={subscribers.length}
                 sectionName={sn.systemAdmin}
+                operations={operations}
+                onOperationsChange={setOperations}
               />
             </motion.div>
           )}
           {activeTab === 'admin' && (
             <motion.div key="admin" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-              <AdminPanel subscribers={subscribers} operations={operations} sectionName={sn.admin} />
+              <AdminPanel subscribers={subscribers} operations={operations} sectionName={sn.admin} systemConfig={systemConfig} />
             </motion.div>
           )}
           {activeTab === 'addOperations' && (
@@ -893,7 +905,7 @@ export default function Index() {
           {activeTab === 'addSubscriber' && (
             <motion.div key="addSub" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-              <AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} sectionName={sn.addSubscriber} />
+              <AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} sectionName={sn.addSubscriber} operations={operations} onOperationsChange={setOperations} />
             </motion.div>
           )}
           {activeTab === 'advanced' && (
@@ -1198,14 +1210,17 @@ function DashboardTab({ stats, subscribers, operations, institutionalText, secti
 // System Admin Tab — لوحة إدارة النظام
 // ─────────────────────────────────────────────────────────────
 
-function SystemAdminTab({ systemConfig, onConfigChange, subscribersCount, sectionName }: {
+function SystemAdminTab({ systemConfig, onConfigChange, subscribersCount, sectionName, operations, onOperationsChange }: {
   systemConfig: SystemConfig;
   onConfigChange: (partial: Partial<SystemConfig>) => void;
   subscribersCount: number;
   sectionName: string;
+  operations: Operation[];
+  onOperationsChange: (o: Operation[]) => void;
 }) {
   const [dateInput, setDateInput] = useState(systemConfig.systemDate);
   const [co, setCo] = useState({ ...systemConfig.cardOverrides });
+  const [qco, setQco] = useState({ ...(systemConfig.queryCardOverrides ?? { totalSubscribers: '', activeCount: '', pendingFees: '' }) });
   const [sn, setSn] = useState({ ...systemConfig.sectionNames });
   const [instText, setInstText] = useState(systemConfig.institutionalText);
   const [saved, setSaved] = useState<string | null>(null);
@@ -1214,8 +1229,17 @@ function SystemAdminTab({ systemConfig, onConfigChange, subscribersCount, sectio
 
   const saveDate = () => {
     onConfigChange({ systemDate: dateInput });
-    flash('تم تحديث تاريخ النظام');
-    toast.success('تم تحديث تاريخ النظام');
+    // تحديث تواريخ جميع العمليات إلى تاريخ اليوم
+    const today = todayStr();
+    onOperationsChange(operations.map(op => ({ ...op, date: today })));
+    flash('تم تحديث تاريخ النظام وجميع العمليات');
+    toast.success('تم تحديث التاريخ وجميع العمليات');
+  };
+
+  const saveQueryCards = () => {
+    onConfigChange({ queryCardOverrides: qco });
+    flash('تم حفظ تعديلات البطاقات الثلاث');
+    toast.success('تم حفظ تعديلات البطاقات الثلاث');
   };
 
   const saveCards = () => {
@@ -1407,6 +1431,55 @@ function SystemAdminTab({ systemConfig, onConfigChange, subscribersCount, sectio
         </CardContent>
       </Card>
 
+      {/* ── 3. إدارة البطاقات الثلاث في الاستعلام ── */}
+      <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-cyan-400 to-blue-400" />
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+            <Shield size={18} className="text-cyan-500" /> إدارة البطاقات الثلاث في نظام الاستعلام
+          </CardTitle>
+          <CardDescription className="text-xs">
+            البطاقات الثلاث التي تظهر تحت حقل الاستعلام عن الأرباح · اتركها فارغة للحساب التلقائي
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-slate-50 ring-1 ring-slate-200 rounded-xl p-4 space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <Users size={15} className="text-slate-600" />
+                <span className="text-sm font-black text-slate-700">إجمالي المشتركين</span>
+              </div>
+              <label className="text-xs font-bold text-slate-500 block">القيمة المعروضة</label>
+              <Input value={qco.totalSubscribers} onChange={e => setQco(p => ({ ...p, totalSubscribers: e.target.value }))}
+                placeholder={`${subscribersCount} (تلقائي)`} className="h-9 border-slate-200 bg-white text-sm" />
+            </div>
+            <div className="bg-slate-50 ring-1 ring-slate-200 rounded-xl p-4 space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <CheckCircle2 size={15} className="text-emerald-600" />
+                <span className="text-sm font-black text-slate-700">نشطون</span>
+              </div>
+              <label className="text-xs font-bold text-slate-500 block">القيمة المعروضة</label>
+              <Input value={qco.activeCount} onChange={e => setQco(p => ({ ...p, activeCount: e.target.value }))}
+                placeholder="تلقائي" className="h-9 border-slate-200 bg-white text-sm" />
+            </div>
+            <div className="bg-slate-50 ring-1 ring-slate-200 rounded-xl p-4 space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertCircle size={15} className="text-orange-500" />
+                <span className="text-sm font-black text-slate-700">رسوم مستحقة</span>
+              </div>
+              <label className="text-xs font-bold text-slate-500 block">القيمة المعروضة</label>
+              <Input value={qco.pendingFees} onChange={e => setQco(p => ({ ...p, pendingFees: e.target.value }))}
+                placeholder="تلقائي" className="h-9 border-slate-200 bg-white text-sm" />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={saveQueryCards} className="bg-cyan-600 hover:bg-cyan-700 gap-1.5 px-6">
+              <Save size={14} /> حفظ تعديلات البطاقات الثلاث
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ── 6. النص المؤسسي ── */}
       <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
         <div className="h-1 bg-gradient-to-r from-amber-400 to-orange-400" />
@@ -1452,10 +1525,11 @@ function SystemAdminTab({ systemConfig, onConfigChange, subscribersCount, sectio
 
 const OPS_PER_PAGE = 8;
 
-function AdminPanel({ subscribers, operations, sectionName }: {
+function AdminPanel({ subscribers, operations, sectionName, systemConfig }: {
   subscribers: Subscriber[];
   operations: Operation[];
   sectionName: string;
+  systemConfig: SystemConfig;
 }) {
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Subscriber | null>(null);
@@ -1591,9 +1665,9 @@ function AdminPanel({ subscribers, operations, sectionName }: {
 
             <div className="grid grid-cols-3 gap-3 mt-5">
               {[
-                { label: 'إجمالي المشتركين', value: subscribers.length, icon: <Users size={13} /> },
-                { label: 'نشطون', value: subscribers.filter(s => s.subscriberStatus === 'نشط').length, icon: <CheckCircle2 size={13} /> },
-                { label: 'رسوم مستحقة', value: subscribers.filter(s => s.systemFees > 0).length, icon: <AlertCircle size={13} /> },
+                { label: 'إجمالي المشتركين', value: systemConfig.queryCardOverrides?.totalSubscribers || String(subscribers.length), icon: <Users size={13} /> },
+                { label: 'نشطون', value: systemConfig.queryCardOverrides?.activeCount || String(subscribers.filter(s => s.subscriberStatus === 'نشط').length), icon: <CheckCircle2 size={13} /> },
+                { label: 'رسوم مستحقة', value: systemConfig.queryCardOverrides?.pendingFees || String(subscribers.filter(s => s.systemFees > 0).length), icon: <AlertCircle size={13} /> },
               ].map((item, i) => (
                 <div key={i} className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
                   <div className="flex items-center justify-center gap-1 text-slate-400 text-xs mb-1">{item.icon}{item.label}</div>
@@ -1701,7 +1775,8 @@ function AdminPanel({ subscribers, operations, sectionName }: {
               </CardContent>
             </Card>
 
-            {/* Operations for this subscriber */}
+            {/* Operations for this subscriber - تظهر فقط عند وجود عمليات */}
+            {subscriberOps.length > 0 && (
             <Card className="border-none shadow-sm ring-1 ring-slate-200">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -1758,6 +1833,7 @@ function AdminPanel({ subscribers, operations, sectionName }: {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* All Operations Log */}
             <AllOperationsLog operations={operations} />
@@ -2150,14 +2226,19 @@ function AddOperationsTab({ operations, onOperationsChange, subscriberNames, sec
 
 const SUBS_PER_PAGE = 10;
 
-function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName }: {
+function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName, operations, onOperationsChange }: {
   subscribers: Subscriber[];
   onSubscribersChange: (s: Subscriber[]) => void;
   sectionName: string;
+  operations: Operation[];
+  onOperationsChange: (o: Operation[]) => void;
 }) {
   const [form, setForm] = useState<Omit<Subscriber, 'id'>>({ ...EMPTY_SUB });
   const [editId, setEditId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [pendingOps, setPendingOps] = useState<{ operation: string; amount: string; date: string; status: string }[]>([]);
+  const [showAddOps, setShowAddOps] = useState(false);
+  const [tempOp, setTempOp] = useState({ operation: 'توزيع ارباح', amount: '', date: todayStr(), status: 'مكتمل' });
   const [page, setPage] = useState(1);
   const [searchSub, setSearchSub] = useState('');
   const [customBank, setCustomBank] = useState(false);
@@ -2220,6 +2301,7 @@ function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName }: {
     setForm(prev => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
+    const subName = form.name.trim();
     if (editId) {
       onSubscribersChange(subscribers.map(s => s.id === editId ? { id: editId, ...form } : s));
       toast.success('تم تحديث بيانات المشترك');
@@ -2227,9 +2309,24 @@ function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName }: {
       onSubscribersChange([...subscribers, { id: uid(), ...form }]);
       toast.success('تمت إضافة المشترك بنجاح');
     }
+    // حفظ العمليات المعلّقة للمشترك
+    if (pendingOps.length > 0 && subName) {
+      const newOps: Operation[] = pendingOps.map(op => ({
+        id: uid(),
+        subscriberName: subName,
+        operation: op.operation,
+        amount: op.amount,
+        date: op.date,
+        status: op.status,
+      }));
+      onOperationsChange([...operations, ...newOps]);
+    }
     setForm({ ...EMPTY_SUB });
     setEditId(null);
     setCustomBank(false);
+    setPendingOps([]);
+    setShowAddOps(false);
+    setTempOp({ operation: 'توزيع ارباح', amount: '', date: todayStr(), status: 'مكتمل' });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -2471,6 +2568,76 @@ function AddSubscriberTab({ subscribers, onSubscribersChange, sectionName }: {
             <label className="text-xs font-bold text-slate-500 mb-1.5 flex items-center gap-1"><FileText size={11} />ملاحظات (اختياري)</label>
             <textarea value={f.notes} onChange={e => set('notes', e.target.value)} placeholder="أي ملاحظات إضافية..." rows={2}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-transparent transition-all" />
+          </div>
+
+          {/* Subscriber Operations Section */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-slate-500 flex items-center gap-1"><ClipboardList size={11} />سجل عمليات للمشترك (اختياري)</label>
+              <button type="button" onClick={() => setShowAddOps(v => !v)}
+                className="text-xs text-emerald-600 hover:text-emerald-800 font-bold flex items-center gap-1 transition-colors">
+                {showAddOps ? <><X size={12} /> إغلاق</> : <><Plus size={12} /> إضافة عملية</>}
+              </button>
+            </div>
+            {pendingOps.length > 0 && (
+              <div className="mb-3 space-y-1.5">
+                {pendingOps.map((op, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
+                    <div className="flex items-center gap-2 text-xs text-slate-700">
+                      <span className="font-bold text-emerald-700">{op.operation}</span>
+                      {op.amount && <span className="text-slate-500">· {op.amount}</span>}
+                      <span className="text-slate-400">· {op.date}</span>
+                      <Badge className="text-[10px] px-1.5 py-0 bg-white border border-emerald-200 text-emerald-700">{op.status}</Badge>
+                    </div>
+                    <button type="button" onClick={() => setPendingOps(p => p.filter((_, i) => i !== idx))}
+                      className="text-slate-400 hover:text-red-500 transition-colors"><X size={13} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showAddOps && (
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">نوع العملية</label>
+                    <Select value={tempOp.operation} onValueChange={v => setTempOp(p => ({ ...p, operation: v }))}>
+                      <SelectTrigger className="h-9 border-slate-200 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>{OPERATION_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">الحالة</label>
+                    <Select value={tempOp.status} onValueChange={v => setTempOp(p => ({ ...p, status: v }))}>
+                      <SelectTrigger className="h-9 border-slate-200 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>{OPERATION_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">المبلغ (اختياري)</label>
+                    <Input value={tempOp.amount} onChange={e => setTempOp(p => ({ ...p, amount: e.target.value }))}
+                      placeholder="1,500 ر.س" className="h-9 border-slate-200 text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">التاريخ</label>
+                    <Input type="date" value={tempOp.date} onChange={e => setTempOp(p => ({ ...p, date: e.target.value }))}
+                      className="h-9 border-slate-200 text-sm" />
+                  </div>
+                </div>
+                <Button type="button" size="sm"
+                  onClick={() => {
+                    setPendingOps(p => [...p, { ...tempOp }]);
+                    setTempOp({ operation: 'توزيع ارباح', amount: '', date: todayStr(), status: 'مكتمل' });
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 gap-1.5 text-xs h-8 px-4">
+                  <Plus size={12} /> إضافة للقائمة
+                </Button>
+              </div>
+            )}
+            {!showAddOps && pendingOps.length === 0 && (
+              <p className="text-xs text-slate-400">عند إضافة عمليات ستظهر في صفحة الاستعلام عند البحث عن هذا المشترك</p>
+            )}
           </div>
 
           {/* Actions */}
