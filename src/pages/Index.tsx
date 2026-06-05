@@ -1835,6 +1835,11 @@ function AdminPanel({ subscribers, operations, sectionName, systemConfig }: {
             </Card>
             )}
 
+            {/* زر الطباعة والتصدير */}
+            <div className="flex justify-center pt-2 pb-1">
+              <PrintMenu found={found} subscriberOps={subscriberOps} queryText={query} />
+            </div>
+
             {/* All Operations Log */}
             <AllOperationsLog operations={operations} />
           </motion.div>
