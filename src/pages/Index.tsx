@@ -102,6 +102,18 @@ interface SystemConfig {
   };
   institutionalText: string;
   systemDate: string;
+  iPhoneConfig: {
+    enabled: boolean;
+    dynamicIsland: 'normal' | 'recording';
+    batteryLevel: number;
+    batteryCharging: boolean;
+    wifiEnabled: boolean;
+    wifiStrength: number;
+    signalEnabled: boolean;
+    signalStrength: number;
+    networkType: string;
+    customTime: string;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -412,6 +424,18 @@ const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   },
   institutionalText: '',
   systemDate: '',
+  iPhoneConfig: {
+    enabled: false,
+    dynamicIsland: 'normal',
+    batteryLevel: 85,
+    batteryCharging: false,
+    wifiEnabled: true,
+    wifiStrength: 3,
+    signalEnabled: true,
+    signalStrength: 4,
+    networkType: '4G',
+    customTime: '',
+  },
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -655,12 +679,17 @@ export default function Index() {
   ];
 
   const isAdvanced = activeTab === 'advanced';
+  const iCfg = systemConfig.iPhoneConfig ?? {
+    enabled: false, dynamicIsland: 'normal', batteryLevel: 85, batteryCharging: false,
+    wifiEnabled: true, wifiStrength: 3, signalEnabled: true, signalStrength: 4,
+    networkType: '4G', customTime: '',
+  };
 
   const systemDisplayDate = systemConfig.systemDate
     || new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex" dir="rtl">
+  const appContent = (
+    <div className="min-h-screen bg-slate-50 flex" dir="rtl" style={iCfg.enabled ? { minHeight: '100%' } : undefined}>
       {/* ── Enterprise Sidebar ── */}
       <motion.aside
         animate={{ width: sidebarCollapsed ? 72 : 256 }}
@@ -961,6 +990,44 @@ export default function Index() {
       </AnimatePresence>
     </div>
   );
+
+  if (iCfg.enabled) {
+    return (
+      <IPhoneFrame cfg={iCfg} onExit={() => updateConfig({ iPhoneConfig: { ...iCfg, enabled: false } })}>
+        <div dir="rtl" className="min-h-full bg-slate-50">
+          {/* Mobile nav bar at top */}
+          <div className="bg-gradient-to-b from-slate-900 to-slate-800 text-white px-3 py-3 flex items-center gap-2 flex-wrap">
+            {navItems.map(item => (
+              <button
+                key={item.tab}
+                onClick={() => setActiveTab(item.tab)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeTab === item.tab
+                    ? 'bg-emerald-500 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {item.icon}
+                <span className="hidden">{item.label}</span>
+              </button>
+            ))}
+          </div>
+          {/* Content */}
+          <div className="p-3">
+            {activeTab === 'dashboard' && <DashboardTab stats={liveStats} subscribers={subscribers} operations={operations} institutionalText={systemConfig.institutionalText} sectionName={sn.dashboard} />}
+            {activeTab === 'systemAdmin' && <SystemAdminTab systemConfig={systemConfig} onConfigChange={updateConfig} subscribersCount={subscribers.length} sectionName={sn.systemAdmin} operations={operations} onOperationsChange={setOperations} />}
+            {activeTab === 'admin' && <AdminPanel subscribers={subscribers} operations={operations} sectionName={sn.admin} systemConfig={systemConfig} />}
+            {activeTab === 'addOperations' && <AddOperationsTab operations={operations} onOperationsChange={setOperations} subscriberNames={subscribers.map(s => s.name)} sectionName={sn.addOperations} />}
+            {activeTab === 'addSubscriber' && <AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} sectionName={sn.addSubscriber} operations={operations} onOperationsChange={setOperations} />}
+            {activeTab === 'reports' && <ReportsTab subscribers={subscribers} operations={operations} />}
+            {activeTab === 'settings' && <SettingsTab isDark={isDark} onDarkToggle={() => setIsDark(!isDark)} subscribers={subscribers} operations={operations} systemConfig={systemConfig} onSubscribersChange={setSubscribers} onOperationsChange={setOperations} onConfigChange={updateConfig} />}
+          </div>
+        </div>
+      </IPhoneFrame>
+    );
+  }
+
+  return appContent;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1207,6 +1274,178 @@ function DashboardTab({ stats, subscribers, operations, institutionalText, secti
 
 
 // ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// iPhone 17 Pro Max Launcher Frame
+// ─────────────────────────────────────────────────────────────
+function IPhoneStatusBar({ cfg, time }: { cfg: SystemConfig['iPhoneConfig']; time: string }) {
+  const isRec = cfg.dynamicIsland === 'recording';
+  return (
+    <div className="relative flex items-center justify-between px-5 pt-3 pb-1 select-none" style={{ height: 52 }}>
+      {/* Dynamic Island */}
+      <div className="absolute left-1/2 top-2" style={{ transform: 'translateX(-50%)' }}>
+        <div style={{
+          width: isRec ? 126 : 118, height: 34,
+          background: '#000', borderRadius: 20,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          transition: 'width 0.3s ease',
+        }}>
+          {isRec && (
+            <span style={{
+              width: 9, height: 9, borderRadius: '50%',
+              background: '#ef4444',
+              boxShadow: '0 0 6px 2px rgba(239,68,68,0.55)',
+              animation: 'pulse 1.4s ease-in-out infinite',
+            }} />
+          )}
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#1a1a1a', border: '1.5px solid #333' }} />
+        </div>
+      </div>
+      {/* Time (right side for RTL) */}
+      <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', letterSpacing: -0.2 }}>{time}</span>
+      {/* Right indicators */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        {/* Signal */}
+        {cfg.signalEnabled && (
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5 }}>
+            {[1,2,3,4].map(i => (
+              <div key={i} style={{
+                width: 3, height: 4 + i * 2.5, borderRadius: 1,
+                background: i <= cfg.signalStrength ? '#0f172a' : 'rgba(15,23,42,0.22)',
+              }} />
+            ))}
+          </div>
+        )}
+        {/* Network type */}
+        {cfg.networkType && (
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a', letterSpacing: -0.5 }}>{cfg.networkType}</span>
+        )}
+        {/* WiFi */}
+        {cfg.wifiEnabled && (
+          <svg width="15" height="12" viewBox="0 0 15 12">
+            {[3,2,1].map((r, idx) => (
+              <path key={r} d={`M 7.5 11 m 0 0 a ${r * 2.8} ${r * 2.8} 0 0 1 -${r * 2.8} -${r * 2.8} a ${r * 2.8} ${r * 2.8} 0 0 1 ${r * 5.6} 0`}
+                fill="none" stroke={idx < cfg.wifiStrength ? '#0f172a' : 'rgba(15,23,42,0.22)'}
+                strokeWidth="1.4" strokeLinecap="round" />
+            ))}
+            <circle cx="7.5" cy="11" r="1.2" fill="#0f172a" />
+          </svg>
+        )}
+        {/* Battery */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <div style={{ position: 'relative', width: 22, height: 11, border: '1.2px solid rgba(15,23,42,0.38)', borderRadius: 3 }}>
+            <div style={{ position: 'absolute', right: -3, top: '50%', transform: 'translateY(-50%)', width: 2, height: 5, background: 'rgba(15,23,42,0.38)', borderRadius: '0 1px 1px 0' }} />
+            <div style={{
+              position: 'absolute', left: 1.5, top: 1.5,
+              width: `${Math.min(100, cfg.batteryLevel) * 0.17}px`, maxWidth: 18,
+              height: 8, borderRadius: 2,
+              background: cfg.batteryLevel < 20 ? '#ef4444' : cfg.batteryCharging ? '#22c55e' : '#0f172a',
+              transition: 'width 0.3s',
+            }} />
+          </div>
+          {cfg.batteryCharging && <span style={{ fontSize: 9, color: '#22c55e' }}>⚡</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function IPhoneFrame({ children, cfg, onExit }: {
+  children: React.ReactNode;
+  cfg: SystemConfig['iPhoneConfig'];
+  onExit: () => void;
+}) {
+  const [time, setTime] = React.useState(() => {
+    if (cfg.customTime) return cfg.customTime;
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  });
+
+  React.useEffect(() => {
+    if (cfg.customTime) { setTime(cfg.customTime); return; }
+    const tick = setInterval(() => {
+      const n = new Date();
+      setTime(`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`);
+    }, 30000);
+    return () => clearInterval(tick);
+  }, [cfg.customTime]);
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      {/* Exit button */}
+      <button onClick={onExit} style={{
+        position: 'absolute', top: 16, right: 16, zIndex: 10001,
+        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+        color: 'white', borderRadius: 12, padding: '6px 14px',
+        fontSize: 12, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}>
+        ✕ خروج من وضع الآيفون
+      </button>
+
+      {/* iPhone 17 Pro Max shell */}
+      <div style={{
+        position: 'relative', width: 393, height: 852,
+        borderRadius: 54,
+        background: 'linear-gradient(145deg, #3a3a3c 0%, #2c2c2e 30%, #1c1c1e 70%, #2a2a2c 100%)',
+        boxShadow: [
+          'inset 0 0 0 1px rgba(255,255,255,0.12)',
+          'inset 0 1px 0 rgba(255,255,255,0.08)',
+          '0 0 0 1px rgba(0,0,0,0.8)',
+          '0 25px 80px rgba(0,0,0,0.7)',
+          '0 0 0 11px #1c1c1e',
+          '0 0 0 12px rgba(255,255,255,0.04)',
+        ].join(', '),
+        flexShrink: 0,
+        transform: 'scale(min(1, calc((100vh - 40px) / 852)))',
+        transformOrigin: 'center center',
+      }}>
+        {/* Side buttons */}
+        <div style={{ position: 'absolute', left: -13, top: 108, width: 5, height: 32, background: 'linear-gradient(to right, #2a2a2c, #3a3a3c)', borderRadius: '3px 0 0 3px', boxShadow: '-1px 0 2px rgba(0,0,0,0.5)' }} />
+        <div style={{ position: 'absolute', left: -13, top: 152, width: 5, height: 60, background: 'linear-gradient(to right, #2a2a2c, #3a3a3c)', borderRadius: '3px 0 0 3px', boxShadow: '-1px 0 2px rgba(0,0,0,0.5)' }} />
+        <div style={{ position: 'absolute', left: -13, top: 224, width: 5, height: 60, background: 'linear-gradient(to right, #2a2a2c, #3a3a3c)', borderRadius: '3px 0 0 3px', boxShadow: '-1px 0 2px rgba(0,0,0,0.5)' }} />
+        <div style={{ position: 'absolute', right: -13, top: 164, width: 5, height: 90, background: 'linear-gradient(to left, #2a2a2c, #3a3a3c)', borderRadius: '0 3px 3px 0', boxShadow: '1px 0 2px rgba(0,0,0,0.5)' }} />
+
+        {/* Screen area */}
+        <div style={{
+          position: 'absolute', inset: 11,
+          borderRadius: 44, overflow: 'hidden',
+          background: 'white', display: 'flex', flexDirection: 'column',
+        }}>
+          {/* Status bar */}
+          <div style={{ flexShrink: 0, background: 'rgba(248,250,252,0.97)' }}>
+            <IPhoneStatusBar cfg={cfg} time={time} />
+          </div>
+
+          {/* Content area */}
+          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
+            className="iphone-content-scroll">
+            {children}
+          </div>
+
+          {/* Home indicator */}
+          <div style={{
+            flexShrink: 0, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'white',
+          }}>
+            <div style={{ width: 130, height: 5, borderRadius: 3, background: 'rgba(0,0,0,0.2)' }} />
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .iphone-content-scroll::-webkit-scrollbar { display: none; }
+        .iphone-content-scroll { scrollbar-width: none; }
+      `}</style>
+    </div>
+  );
+}
+
 // System Admin Tab — لوحة إدارة النظام
 // ─────────────────────────────────────────────────────────────
 
@@ -1515,7 +1754,256 @@ function SystemAdminTab({ systemConfig, onConfigChange, subscribersCount, sectio
           </div>
         </CardContent>
       </Card>
+
+      {/* ── iPhone 17 Pro Max Launcher ── */}
+      <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden col-span-full">
+        <div className="h-1 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-300" />
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+            <span style={{ fontSize: 18 }}>📱</span> محاكي iPhone 17 Pro Max
+          </CardTitle>
+          <CardDescription className="text-xs">يعرض النظام كاملاً داخل إطار آيفون واقعي مع ضبط شريط الحالة</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <IPhoneLauncherSettings systemConfig={systemConfig} onConfigChange={onConfigChange} />
+        </CardContent>
+      </Card>
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// IPhoneLauncherSettings component
+// ─────────────────────────────────────────────────────────────
+
+function IPhoneLauncherSettings({ systemConfig, onConfigChange }: {
+  systemConfig: SystemConfig;
+  onConfigChange: (p: Partial<SystemConfig>) => void;
+}) {
+  const ic = systemConfig.iPhoneConfig ?? {
+    enabled: false, dynamicIsland: 'normal', batteryLevel: 85, batteryCharging: false,
+    wifiEnabled: true, wifiStrength: 3, signalEnabled: true, signalStrength: 4,
+    networkType: '4G', customTime: '',
+  };
+
+  const update = (patch: Partial<typeof ic>) => {
+    onConfigChange({ iPhoneConfig: { ...ic, ...patch } });
+  };
+
+  const ToggleRow = ({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) => (
+    <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
+      <div>
+        <p className="text-sm font-bold text-slate-700">{label}</p>
+        {desc && <p className="text-xs text-slate-400 mt-0.5">{desc}</p>}
+      </div>
+      <button
+        onClick={() => onChange(!value)}
+        className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-0.5 ${
+          value ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'
+        }`}
+      >
+        <span className="w-5 h-5 rounded-full bg-white shadow-md transition-all block" />
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      {/* ── Col 1: Master Switch + Dynamic Island ── */}
+      <div className="space-y-4">
+        {/* Enable toggle */}
+        <div className={`rounded-2xl p-5 ${
+          ic.enabled
+            ? 'bg-gradient-to-br from-slate-800 to-slate-900 ring-1 ring-slate-700'
+            : 'bg-slate-50 ring-1 ring-slate-200'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className={`text-sm font-black ${ic.enabled ? 'text-white' : 'text-slate-700'}`}>وضع الآيفون</p>
+              <p className={`text-xs mt-0.5 ${ic.enabled ? 'text-slate-400' : 'text-slate-400'}`}>
+                {ic.enabled ? '🟢 مفعّل — النظام يعمل داخل إطار آيفون' : 'النظام يعمل بشكل اعتيادي'}
+              </p>
+            </div>
+            <button
+              onClick={() => update({ enabled: !ic.enabled })}
+              className={`w-14 h-7 rounded-full transition-all duration-300 flex items-center px-0.5 ${
+                ic.enabled ? 'bg-emerald-500 justify-end' : 'bg-slate-300 justify-start'
+              }`}
+            >
+              <span className="w-6 h-6 rounded-full bg-white shadow-md block transition-all" />
+            </button>
+          </div>
+          {ic.enabled && (
+            <button
+              onClick={() => update({ enabled: false })}
+              className="w-full py-2 text-xs font-bold text-red-400 bg-red-500/10 rounded-xl hover:bg-red-500/20 transition-colors"
+            >
+              ✕ إيقاف وضع الآيفون الآن
+            </button>
+          )}
+        </div>
+
+        {/* Dynamic Island */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
+          <p className="text-sm font-black text-slate-700 flex items-center gap-2">💊 Dynamic Island</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(['normal', 'recording'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => update({ dynamicIsland: mode })}
+                className={`py-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1.5 ${
+                  ic.dynamicIsland === mode
+                    ? mode === 'recording' ? 'bg-red-500 text-white shadow-lg' : 'bg-slate-800 text-white shadow-lg'
+                    : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span className={`rounded-full block ${
+                  mode === 'recording' ? 'bg-red-400 w-3 h-3 animate-pulse' : 'bg-slate-400 w-2 h-2'
+                }`} />
+                {mode === 'normal' ? 'عادي' : 'تسجيل شاشة'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Custom Time */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-2">
+          <p className="text-sm font-black text-slate-700">🕐 وقت مخصص</p>
+          <Input
+            value={ic.customTime}
+            onChange={e => update({ customTime: e.target.value })}
+            placeholder="مثال: 09:41 (فارغ = الوقت الحقيقي)"
+            className="h-9 border-slate-200 text-sm"
+          />
+          <p className="text-xs text-slate-400">09:41 هو الوقت الأيقوني لآبل في الإعلانات</p>
+        </div>
+      </div>
+
+      {/* ── Col 2: Battery ── */}
+      <div className="space-y-4">
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-4">
+          <p className="text-sm font-black text-slate-700 flex items-center gap-2">🔋 البطارية</p>
+
+          {/* Level slider */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500">مستوى الشحن</label>
+              <span className="text-sm font-black text-slate-700">{ic.batteryLevel}٪</span>
+            </div>
+            <input
+              type="range" min={1} max={100} value={ic.batteryLevel}
+              onChange={e => update({ batteryLevel: Number(e.target.value) })}
+              className="w-full accent-emerald-500"
+            />
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>1٪</span><span>50٪</span><span>100٪</span>
+            </div>
+          </div>
+
+          {/* Quick presets */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {[20, 50, 75, 100].map(v => (
+              <button key={v}
+                onClick={() => update({ batteryLevel: v })}
+                className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  ic.batteryLevel === v ? 'bg-emerald-500 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}>{v}٪</button>
+            ))}
+          </div>
+
+          {/* Charging toggle */}
+          <ToggleRow
+            label="وضع الشحن 🔌"
+            desc="يظهر البرق الأخضر ويتحول لون البطارية"
+            value={ic.batteryCharging}
+            onChange={v => update({ batteryCharging: v })}
+          />
+
+          {/* Visual preview */}
+          <div className="flex items-center justify-center py-3">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ position: 'relative', width: 44, height: 22, border: '2px solid rgba(15,23,42,0.38)', borderRadius: 5 }}>
+                <div style={{ position: 'absolute', right: -5, top: '50%', transform: 'translateY(-50%)', width: 4, height: 10, background: 'rgba(15,23,42,0.38)', borderRadius: '0 2px 2px 0' }} />
+                <div style={{
+                  position: 'absolute', left: 3, top: 3,
+                  width: Math.max(2, ic.batteryLevel * 0.32), height: 12, borderRadius: 3,
+                  background: ic.batteryLevel < 20 ? '#ef4444' : ic.batteryCharging ? '#22c55e' : '#0f172a',
+                  transition: 'all 0.3s',
+                }} />
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: ic.batteryLevel < 20 ? '#ef4444' : '#0f172a' }}>{ic.batteryLevel}٪</span>
+              {ic.batteryCharging && <span style={{ fontSize: 16 }}>⚡</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Col 3: Signal + WiFi + Network ── */}
+      <div className="space-y-4">
+
+        {/* Signal */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
+          <p className="text-sm font-black text-slate-700 flex items-center gap-2">📶 الشبكة الخلوية</p>
+          <ToggleRow label="إظهار أعمدة الإشارة" value={ic.signalEnabled} onChange={v => update({ signalEnabled: v })} />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500">قوة الإشارة</label>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2 }}>
+                {[1,2,3,4].map(i => (
+                  <div key={i} style={{
+                    width: 5, height: 5 + i * 3.5, borderRadius: 1.5,
+                    background: i <= ic.signalStrength ? '#0f172a' : 'rgba(15,23,42,0.18)',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                  }} onClick={() => update({ signalStrength: i })} />
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[0,1,2,3,4].map(v => (
+                <button key={v}
+                  onClick={() => update({ signalStrength: v })}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    ic.signalStrength === v ? 'bg-slate-700 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}>{v === 0 ? 'لا' : v}</button>
+              ))}
+            </div>
+          </div>
+          {/* Network type */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 block">نوع الشبكة</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {['5G','4G','LTE','3G','','2G'].map(t => (
+                <button key={t}
+                  onClick={() => update({ networkType: t })}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    ic.networkType === t ? 'bg-blue-600 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}>{t || 'بدون'}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* WiFi */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
+          <p className="text-sm font-black text-slate-700 flex items-center gap-2">📡 الواي فاي</p>
+          <ToggleRow label="إظهار أيقونة الواي فاي" value={ic.wifiEnabled} onChange={v => update({ wifiEnabled: v })} />
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 block">قوة الإشارة</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[0,1,2,3].map(v => (
+                <button key={v}
+                  onClick={() => update({ wifiStrength: v })}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    ic.wifiStrength === v ? 'bg-cyan-600 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}>{v === 0 ? 'بدون' : v}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
