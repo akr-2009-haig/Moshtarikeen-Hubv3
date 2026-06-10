@@ -3670,13 +3670,14 @@ function createSubscriberVideo(
   quality: '480p' | '720p' | '1080p',
   onComplete: () => void
 ) {
+  // iPhone 16 Pro Max portrait ratio (390×844 base)
   const dims: Record<string, [number, number]> = {
-    '480p': [854, 480],
-    '720p': [1280, 720],
-    '1080p': [1920, 1080],
+    '480p': [390, 844],
+    '720p': [585, 1266],
+    '1080p': [780, 1688],
   };
   const [W, H] = dims[quality];
-  const sc = W / 1280;
+  const sc = W / 390;
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -3705,7 +3706,7 @@ function createSubscriberVideo(
   };
 
   const FPS = 30;
-  const TOTAL = 420; // title(60)+query(60)+searching(45)+results(225)+final(30)
+  const TOTAL = 450; // intro(60) + main(270) + hold(120)
   let frame = 0;
 
   const fields = [
@@ -3717,40 +3718,14 @@ function createSubscriberVideo(
     { label: 'المنصة', value: found.platform },
   ].filter(f => f.value && String(f.value).trim() !== '');
 
-  // Light-theme financials matching FinBox
   const financials = [
-    { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, bg: '#eff6ff', ring: '#bfdbfe', color: '#1d4ed8' },
-    { label: 'الأرباح', value: found.profits, bg: '#ecfdf5', ring: '#a7f3d0', color: '#047857' },
-    { label: 'رسوم النظام', value: found.systemFees, bg: '#fff7ed', ring: '#fed7aa', color: '#ea580c' },
+    { label: 'مبلغ الاشتراك', value: found.subscriptionAmount, color: '#60a5fa', glow: '#3b82f6' },
+    { label: 'الأرباح', value: found.profits, color: '#34d399', glow: '#10b981' },
+    { label: 'رسوم النظام', value: found.systemFees, color: '#fb923c', glow: '#f97316' },
   ].filter(f => f.value != null && Number(f.value) > 0);
 
   function easeOut(t: number) { return 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3); }
   function easeInOut(t: number) { const c = Math.max(0, Math.min(1, t)); return c < 0.5 ? 2 * c * c : 1 - Math.pow(-2 * c + 2, 2) / 2; }
-
-  // Dark cinematic background (used for intro phases)
-  function drawDarkBg() {
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#060d1a'); bg.addColorStop(1, '#0f172a');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(59,130,246,0.05)'; ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 64 * sc) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let yy = 0; yy < H; yy += 64 * sc) { ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W, yy); ctx.stroke(); }
-  }
-
-  // Light AdminPanel background (used for results phase)
-  function drawLightBg() {
-    ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(148,163,184,0.07)'; ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 48 * sc) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let yy = 0; yy < H; yy += 48 * sc) { ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W, yy); ctx.stroke(); }
-  }
-
-  function glow(x: number, y: number, r: number, col: string, a: number) {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, col.replace(')', `,${a})`).replace('rgb', 'rgba'));
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-  }
 
   function rrect(x: number, y: number, w: number, h: number, r: number) {
     ctx.beginPath(); ctx.moveTo(x + r, y);
@@ -3763,227 +3738,267 @@ function createSubscriberVideo(
   function txt(text: string, x: number, y: number, size: number, color: string, align: CanvasTextAlign = 'right', bold = false) {
     ctx.fillStyle = color;
     ctx.font = `${bold ? 'bold ' : ''}${Math.round(size)}px Arial`;
-    ctx.textAlign = align; ctx.fillText(text, x, y);
+    ctx.textAlign = align;
+    ctx.fillText(text, x, y);
   }
 
-  // Phase 1: Title (frames 0-59) — dark cinematic
-  function phase1(f: number) {
-    const t = easeOut(f / 59);
-    drawDarkBg();
-    glow(W / 2, H / 2, 300 * sc, 'rgb(59,130,246)', 0.12 * t);
-    const logoR = 52 * sc;
-    ctx.globalAlpha = t;
-    ctx.fillStyle = 'rgba(29,78,216,0.3)';
-    ctx.strokeStyle = 'rgba(99,102,241,0.6)'; ctx.lineWidth = 2 * sc;
-    ctx.beginPath(); ctx.arc(W / 2, H / 2 - 90 * sc, logoR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    txt('م', W / 2, H / 2 - 90 * sc + 18 * sc, 40 * sc, '#60a5fa', 'center', true);
-    txt('نظام إدارة المشتركين', W / 2, H / 2 + 20 * sc, 38 * sc, 'white', 'center', true);
-    txt('لوحة تحكم إدارية متقدمة', W / 2, H / 2 + 62 * sc, 18 * sc, '#94a3b8', 'center');
-    ctx.globalAlpha = 1;
+  function drawPhoneBg() {
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#060d1a');
+    bg.addColorStop(0.5, '#080f20');
+    bg.addColorStop(1, '#0f172a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    // subtle grid
+    ctx.strokeStyle = 'rgba(59,130,246,0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 40 * sc) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let yy = 0; yy < H; yy += 40 * sc) { ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W, yy); ctx.stroke(); }
   }
 
-  // Phase 2: Query input (frames 60-119) — dark cinematic
-  function phase2(f: number) {
-    const t = easeOut(f / 59);
-    drawDarkBg();
-    glow(W / 2, H * 0.38, 220 * sc, 'rgb(16,185,129)', 0.1);
-    txt('الاستعلام عن المشترك', W / 2, H * 0.28, 30 * sc, 'white', 'center', true);
-    txt('ابحث بالاسم أو الآيبان أو رقم الهاتف...', W / 2, H * 0.34, 15 * sc, '#64748b', 'center');
-    const bW = 580 * sc, bH = 58 * sc, bX = (W - bW) / 2, bY = H * 0.40;
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    rrect(bX, bY, bW, bH, 12 * sc); ctx.fill();
-    ctx.strokeStyle = `rgba(16,185,129,${0.4 * t})`; ctx.lineWidth = 1.5;
-    rrect(bX, bY, bW, bH, 12 * sc); ctx.stroke();
-    const charCount = Math.floor(queryText.length * t);
-    const typed = queryText.slice(0, charCount);
-    txt(typed, bX + bW - 14, bY + 38 * sc, 17 * sc, 'white', 'right');
-    if (Math.floor(frame / 15) % 2 === 0) {
-      ctx.fillStyle = '#10b981';
-      const tw = ctx.measureText(typed).width;
-      ctx.fillRect(bX + bW - 14 - tw - 3, bY + 14 * sc, 2, 28 * sc);
-    }
-    if (t > 0.75) {
-      ctx.globalAlpha = Math.min(1, (t - 0.75) / 0.25);
-      const btnG = ctx.createLinearGradient(bX + bW + 12, 0, bX + bW + 116 * sc, 0);
-      btnG.addColorStop(0, '#10b981'); btnG.addColorStop(1, '#06b6d4');
-      ctx.fillStyle = btnG;
-      rrect(bX + bW + 12, bY, 108 * sc, bH, 12 * sc); ctx.fill();
-      txt('بحث الآن', bX + bW + 60 * sc, bY + 38 * sc, 16 * sc, 'white', 'center', true);
-      ctx.globalAlpha = 1;
-    }
-  }
+  // iPhone 16 Pro Max status bar with screen-recording indicator
+  function drawStatusBar(alpha = 1) {
+    ctx.globalAlpha = alpha;
+    // Dynamic Island — black pill at top center
+    ctx.fillStyle = '#000';
+    rrect(W / 2 - 60 * sc, 6 * sc, 120 * sc, 32 * sc, 16 * sc);
+    ctx.fill();
 
-  // Phase 3: Searching (frames 120-164) — dark cinematic
-  function phase3(f: number) {
-    const t = easeInOut(f / 44);
-    drawDarkBg();
-    glow(W / 2, H / 2, 260 * sc, 'rgb(59,130,246)', 0.15);
-    txt('جارٍ البحث...', W / 2, H * 0.36, 26 * sc, '#94a3b8', 'center');
-    const barW = 480 * sc, barH = 8 * sc, barX = (W - barW) / 2, barY = H * 0.44;
-    ctx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(barX, barY, barW, barH, 4); ctx.fill();
-    const fillW = barW * Math.min(1, t * 1.2);
-    const barG = ctx.createLinearGradient(barX, 0, barX + fillW, 0);
-    barG.addColorStop(0, '#10b981'); barG.addColorStop(1, '#06b6d4');
-    ctx.fillStyle = barG; rrect(barX, barY, fillW, barH, 4); ctx.fill();
-    txt(`${Math.round(Math.min(100, t * 120))}%`, W / 2, H * 0.52, 22 * sc, '#10b981', 'center', true);
-    const ang = frame * 0.12;
-    for (let i = 0; i < 8; i++) {
-      const a = ang + (i * Math.PI * 2) / 8;
-      const dx = W / 2 + Math.cos(a) * 70 * sc, dy = H * 0.36 + Math.sin(a) * 70 * sc;
-      ctx.fillStyle = `rgba(59,130,246,${0.15 + (i / 8) * 0.7})`;
-      ctx.beginPath(); ctx.arc(dx, dy, 4 * sc, 0, Math.PI * 2); ctx.fill();
-    }
-  }
-
-  // Phase 4: Results — LIGHT THEME matching AdminPanel exactly
-  function phase4(f: number) {
-    const t = easeOut(f / 224);
-    drawLightBg();
-    const PAD = 44 * sc;
-    let curY = 14 * sc;
-
-    // ── Header bar (white, accent stripe) ──
-    const headerT = Math.min(1, t * 6);
-    ctx.globalAlpha = headerT;
+    // Time (right side, RTL layout)
+    const now = new Date();
+    const hh = now.getHours().toString().padStart(2, '0');
+    const mm = now.getMinutes().toString().padStart(2, '0');
     ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, W, 58 * sc);
-    ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, 57 * sc, W, 1);
-    const acG = ctx.createLinearGradient(0, 0, W, 0);
-    acG.addColorStop(0, '#34d399'); acG.addColorStop(0.35, '#2dd4bf'); acG.addColorStop(1, '#60a5fa');
-    ctx.fillStyle = acG; ctx.fillRect(0, 0, W, 4 * sc);
-    // Logo
-    ctx.fillStyle = '#ecfdf5'; ctx.strokeStyle = '#6ee7b7'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(W - PAD - 16 * sc, 29 * sc, 20 * sc, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#065f46'; ctx.font = `bold ${16 * sc}px Arial`; ctx.textAlign = 'center';
-    ctx.fillText('م', W - PAD - 16 * sc, 35 * sc);
-    txt('نظام إدارة المشتركين', W - PAD - 46 * sc, 28 * sc, 15 * sc, '#0f172a', 'right', true);
+    ctx.font = `bold ${13 * sc}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.fillText(`${hh}:${mm}`, W - 14 * sc, 24 * sc);
+
+    // Left cluster: recording dot + signal + wifi + battery
+    const lx = 14 * sc;
+    const iy = 20 * sc;
+
+    // Screen recording red dot
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.arc(lx, iy - 2 * sc, 5 * sc, 0, Math.PI * 2); ctx.fill();
+
+    // Signal bars (4 bars, 3 filled)
+    const sigX = lx + 13 * sc;
+    for (let i = 0; i < 4; i++) {
+      const bh = (4 + i * 3) * sc;
+      const bx = sigX + i * 5.5 * sc;
+      ctx.fillStyle = i < 3 ? 'white' : 'rgba(255,255,255,0.28)';
+      ctx.fillRect(bx, iy - bh + 2 * sc, 3.5 * sc, bh);
+    }
+
+    // WiFi arcs
+    const wfX = sigX + 28 * sc;
+    for (let i = 3; i >= 1; i--) {
+      ctx.strokeStyle = i > 1 ? 'white' : 'rgba(255,255,255,0.28)';
+      ctx.lineWidth = 1.5 * sc;
+      ctx.beginPath();
+      ctx.arc(wfX + 4 * sc, iy + 1 * sc, i * 3.5 * sc, Math.PI + 0.45, Math.PI * 2 - 0.45);
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(wfX + 4 * sc, iy + 1 * sc, 1.5 * sc, 0, Math.PI * 2); ctx.fill();
+
+    // Battery
+    const batX = wfX + 20 * sc;
+    const batW = 22 * sc, batH = 11 * sc;
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 1.2 * sc;
+    rrect(batX, iy - batH / 2, batW, batH, 3 * sc); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    rrect(batX + batW + 1 * sc, iy - 2.5 * sc, 2 * sc, 5 * sc, 1 * sc); ctx.fill();
+    ctx.fillStyle = '#34d399';
+    rrect(batX + 2 * sc, iy - batH / 2 + 2 * sc, (batW - 4 * sc) * 0.78, batH - 4 * sc, 2 * sc); ctx.fill();
+
     ctx.globalAlpha = 1;
-    curY = 68 * sc;
+  }
+
+  // iPhone home indicator (bottom bar)
+  function drawHomeIndicator(alpha = 1) {
+    ctx.globalAlpha = alpha;
+    const hiW = 130 * sc, hiH = 5 * sc;
+    ctx.fillStyle = 'rgba(255,255,255,0.32)';
+    rrect(W / 2 - hiW / 2, H - 14 * sc, hiW, hiH, hiH / 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Phase 1: Intro logo reveal (frames 0–59)
+  function phaseIntro(f: number) {
+    const t = easeOut(f / 59);
+    drawPhoneBg();
+
+    // Central glow
+    const g = ctx.createRadialGradient(W / 2, H * 0.42, 0, W / 2, H * 0.42, 180 * sc);
+    g.addColorStop(0, `rgba(124,58,237,${0.28 * t})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W / 2, H * 0.42, 180 * sc, 0, Math.PI * 2); ctx.fill();
+
+    ctx.globalAlpha = t;
+    // App logo
+    const logoR = 44 * sc;
+    const loG = ctx.createLinearGradient(W / 2 - logoR, H * 0.36, W / 2 + logoR, H * 0.44);
+    loG.addColorStop(0, '#34d399'); loG.addColorStop(1, '#6366f1');
+    ctx.fillStyle = loG;
+    ctx.beginPath(); ctx.arc(W / 2, H * 0.4, logoR, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.arc(W / 2, H * 0.4, logoR, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'white'; ctx.font = `bold ${32 * sc}px Arial`; ctx.textAlign = 'center';
+    ctx.fillText('م', W / 2, H * 0.4 + 11 * sc);
+
+    txt('نظام المشتركين', W / 2, H * 0.5, 18 * sc, 'white', 'center', true);
+    txt('استعلام عن المشترك', W / 2, H * 0.55, 12 * sc, '#475569', 'center');
+    // subscriber name teaser
+    txt(found.name, W / 2, H * 0.62, 15 * sc, '#94a3b8', 'center');
+    ctx.globalAlpha = 1;
+
+    drawStatusBar(t);
+    drawHomeIndicator(t);
+  }
+
+  // Phase 2: Main info reveal (frames 60–329)
+  function phaseMain(f: number) {
+    const t = easeInOut(f / 269);
+    drawPhoneBg();
+
+    const PAD = 14 * sc;
+    let curY = 50 * sc;
 
     // ── Profile card ──
-    const cardH = 88 * sc;
-    const cardT = Math.min(1, t * 4);
+    const cardT = Math.min(1, easeOut(f / 45));
     ctx.globalAlpha = cardT;
-    // Card white background
-    ctx.fillStyle = 'white';
-    ctx.shadowColor = 'rgba(0,0,0,0.06)'; ctx.shadowBlur = 8 * sc; ctx.shadowOffsetY = 2 * sc;
-    rrect(PAD, curY, W - PAD * 2, cardH, 14 * sc); ctx.fill();
-    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
-    rrect(PAD, curY, W - PAD * 2, cardH, 14 * sc); ctx.stroke();
-    // Accent strip top
-    const pG = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
-    pG.addColorStop(0, '#34d399'); pG.addColorStop(0.4, '#2dd4bf'); pG.addColorStop(1, '#60a5fa');
-    ctx.fillStyle = pG;
-    ctx.fillRect(PAD, curY, W - PAD * 2, 4 * sc);
-    // Avatar (emerald→teal rounded square)
-    const avG = ctx.createLinearGradient(PAD + 14 * sc, curY + 10 * sc, PAD + 68 * sc, curY + 78 * sc);
+    ctx.fillStyle = 'rgba(15,23,42,0.92)';
+    ctx.strokeStyle = 'rgba(124,58,237,0.45)';
+    ctx.lineWidth = 1.2 * sc;
+    ctx.shadowColor = 'rgba(124,58,237,0.22)'; ctx.shadowBlur = 18 * sc; ctx.shadowOffsetY = 2 * sc;
+    rrect(PAD, curY, W - PAD * 2, 86 * sc, 16 * sc); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    // top gradient bar
+    const acG = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
+    acG.addColorStop(0, '#7c3aed'); acG.addColorStop(0.5, '#4f46e5'); acG.addColorStop(1, '#06b6d4');
+    ctx.fillStyle = acG; ctx.fillRect(PAD, curY, W - PAD * 2, 3 * sc);
+    // Avatar circle (gradient)
+    const avG = ctx.createLinearGradient(W - PAD - 62 * sc, curY + 8 * sc, W - PAD - 16 * sc, curY + 78 * sc);
     avG.addColorStop(0, '#34d399'); avG.addColorStop(1, '#14b8a6');
     ctx.fillStyle = avG;
-    rrect(PAD + 14 * sc, curY + 10 * sc, 58 * sc, 68 * sc, 12 * sc); ctx.fill();
-    // Person silhouette
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    ctx.beginPath(); ctx.arc(PAD + 43 * sc, curY + 31 * sc, 10 * sc, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(PAD + 43 * sc, curY + 61 * sc, 16 * sc, 10 * sc, 0, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.arc(W - PAD - 25 * sc, curY + 43 * sc, 26 * sc, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.82)';
+    ctx.beginPath(); ctx.arc(W - PAD - 25 * sc, curY + 33 * sc, 9 * sc, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(W - PAD - 25 * sc, curY + 57 * sc, 13 * sc, 8 * sc, 0, Math.PI, 0); ctx.fill();
     // Verified dot
-    ctx.fillStyle = '#10b981'; ctx.strokeStyle = 'white'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(PAD + 66 * sc, curY + 70 * sc, 8 * sc, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#10b981'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(W - PAD - 4 * sc, curY + 64 * sc, 7 * sc, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     // Name
-    txt(found.name, W - PAD - 12 * sc, curY + 40 * sc, 22 * sc, '#1e293b', 'right', true);
+    txt(found.name, PAD + 10 * sc, curY + 35 * sc, 16 * sc, 'white', 'left', true);
     // Status badge
     if (found.subscriberStatus) {
-      const stMap: Record<string, { bg: string; ring: string; txt2: string }> = {
-        'نشط':         { bg: '#ecfdf5', ring: '#a7f3d0', txt2: '#047857' },
-        'مشترك جديد': { bg: '#eff6ff', ring: '#bfdbfe', txt2: '#1d4ed8' },
-        'رسوم مستحقة':{ bg: '#fff7ed', ring: '#fed7aa', txt2: '#c2410c' },
-        'توزيع أرباح':{ bg: '#faf5ff', ring: '#e9d5ff', txt2: '#7e22ce' },
-        'معلق':        { bg: '#f1f5f9', ring: '#cbd5e1', txt2: '#475569' },
-        'موقوف':       { bg: '#fef2f2', ring: '#fecaca', txt2: '#991b1b' },
+      const stColors: Record<string, string> = {
+        'نشط': '#10b981', 'مشترك جديد': '#3b82f6', 'رسوم مستحقة': '#f97316',
+        'توزيع أرباح': '#a855f7', 'معلق': '#64748b', 'موقوف': '#ef4444',
       };
-      const stC = stMap[found.subscriberStatus] ?? { bg: '#f1f5f9', ring: '#cbd5e1', txt2: '#475569' };
-      ctx.font = `bold ${11 * sc}px Arial`;
-      const sw = ctx.measureText(found.subscriberStatus).width + 14 * sc;
-      const nameW = ctx.measureText(found.name).width;
-      ctx.fillStyle = stC.bg; ctx.strokeStyle = stC.ring; ctx.lineWidth = 1;
-      rrect(W - PAD - 12 * sc - nameW - 10 * sc - sw, curY + 26 * sc, sw, 20 * sc, 10 * sc);
-      ctx.fill(); ctx.stroke();
-      txt(found.subscriberStatus, W - PAD - 12 * sc - nameW - 18 * sc, curY + 40 * sc, 11 * sc, stC.txt2, 'right', true);
+      const stC = stColors[found.subscriberStatus] ?? '#64748b';
+      ctx.font = `bold ${9.5 * sc}px Arial`;
+      const sw = ctx.measureText(found.subscriberStatus).width + 12 * sc;
+      ctx.fillStyle = `${stC}22`; ctx.strokeStyle = `${stC}55`; ctx.lineWidth = 1;
+      rrect(PAD + 10 * sc, curY + 48 * sc, sw, 17 * sc, 8 * sc); ctx.fill(); ctx.stroke();
+      txt(found.subscriberStatus, PAD + 10 * sc + sw / 2, curY + 60 * sc, 9.5 * sc, stC, 'center', true);
     }
-    if (found.joinDate) txt(`عضو منذ: ${found.joinDate}`, W - PAD - 12 * sc, curY + 62 * sc, 11 * sc, '#94a3b8', 'right');
+    if (found.joinDate) txt(`عضو منذ: ${found.joinDate}`, PAD + 10 * sc, curY + 75 * sc, 9 * sc, '#334155', 'left');
     ctx.globalAlpha = 1;
-    curY += cardH + 14 * sc;
+    curY += 96 * sc;
 
-    // ── Fields grid (MiniInfo: bg-slate-50 ring-slate-200) ──
-    const fieldsN = Math.floor(fields.length * Math.min(1, (t - 0.1) * 3));
-    if (fieldsN > 0) {
-      const FCOLS = 4, gap = 8 * sc;
-      const fw = (W - PAD * 2 - gap * (FCOLS - 1)) / FCOLS;
-      fields.slice(0, fieldsN).forEach((fld, i) => {
-        const col = i % FCOLS, row = Math.floor(i / FCOLS);
-        const fx = W - PAD - col * (fw + gap) - fw;
-        const fy = curY + row * 68 * sc;
-        const fp = Math.min(1, (t - 0.1 - i * 0.04) * 4);
-        ctx.globalAlpha = fp;
-        ctx.fillStyle = '#f8fafc';
-        ctx.shadowColor = 'rgba(0,0,0,0.03)'; ctx.shadowBlur = 3 * sc; ctx.shadowOffsetY = sc;
-        rrect(fx, fy, fw, 58 * sc, 10 * sc); ctx.fill();
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
-        rrect(fx, fy, fw, 58 * sc, 10 * sc); ctx.stroke();
-        txt(fld.label, fx + fw - 10 * sc, fy + 19 * sc, 10 * sc, '#94a3b8', 'right');
-        const v = fld.value.length > 20 ? fld.value.slice(0, 18) + '…' : fld.value;
-        txt(v, fx + fw - 10 * sc, fy + 44 * sc, 12 * sc, '#334155', 'right', true);
-        ctx.globalAlpha = 1;
-      });
-      curY += Math.ceil(fields.length / FCOLS) * 68 * sc + 12 * sc;
-    }
-
-    // ── Financials (FinBox light colors) ──
-    if (t > 0.5 && financials.length > 0) {
-      const finT = Math.min(1, (t - 0.5) * 3);
-      const gap = 8 * sc;
-      const finW2 = (W - PAD * 2 - gap * (financials.length - 1)) / financials.length;
+    // ── Financials ──
+    if (financials.length > 0 && f > 18) {
+      const finGap = 7 * sc;
+      const finW = (W - PAD * 2 - finGap * (financials.length - 1)) / financials.length;
       financials.forEach((fin, i) => {
-        const fx = W - PAD - i * (finW2 + gap) - finW2;
-        const fp = Math.min(1, finT * (1 + i * 0.2));
-        ctx.globalAlpha = Math.min(1, fp);
-        ctx.fillStyle = fin.bg;
-        ctx.shadowColor = 'rgba(0,0,0,0.03)'; ctx.shadowBlur = 4 * sc; ctx.shadowOffsetY = sc;
-        rrect(fx, curY, finW2, 72 * sc, 12 * sc); ctx.fill();
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-        ctx.strokeStyle = fin.ring; ctx.lineWidth = 1;
-        rrect(fx, curY, finW2, 72 * sc, 12 * sc); ctx.stroke();
-        txt(fin.label, fx + finW2 / 2, curY + 24 * sc, 12 * sc, '#64748b', 'center');
-        txt(`${fin.value.toLocaleString()} ر.س`, fx + finW2 / 2, curY + 56 * sc, 18 * sc, fin.color, 'center', true);
+        const fp = Math.min(1, easeOut((f - 18 - i * 10) / 35));
+        if (fp <= 0) return;
+        ctx.globalAlpha = fp;
+        const fx = PAD + i * (finW + finGap);
+        ctx.fillStyle = 'rgba(15,23,42,0.88)';
+        ctx.strokeStyle = `${fin.glow}50`;
+        ctx.lineWidth = 1.2 * sc;
+        ctx.shadowColor = `${fin.glow}28`; ctx.shadowBlur = 12 * sc; ctx.shadowOffsetY = 2 * sc;
+        rrect(fx, curY, finW, 74 * sc, 12 * sc); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+        // accent strip
+        ctx.fillStyle = fin.color; ctx.fillRect(fx, curY, finW, 2.5 * sc);
+        txt(fin.label, fx + finW / 2, curY + 22 * sc, 9.5 * sc, '#64748b', 'center');
+        txt(Number(fin.value).toLocaleString(), fx + finW / 2, curY + 52 * sc, 15 * sc, fin.color, 'center', true);
+        txt('ر.س', fx + finW / 2, curY + 66 * sc, 9 * sc, `${fin.color}88`, 'center');
         ctx.globalAlpha = 1;
       });
+      curY += 82 * sc + 8 * sc;
     }
+
+    // ── Info fields (2-column grid) ──
+    if (fields.length > 0) {
+      const fieldsToShow = Math.min(fields.length, Math.max(0, Math.floor((f - 55) / 15)));
+      const FCOLS = 2, fGap = 7 * sc;
+      const fw = (W - PAD * 2 - fGap) / FCOLS;
+      fields.slice(0, fieldsToShow).forEach((fld, i) => {
+        const col = i % FCOLS;
+        const row = Math.floor(i / FCOLS);
+        const fx = PAD + col * (fw + fGap);
+        const fy = curY + row * 64 * sc;
+        const fp = Math.min(1, easeOut((f - 55 - i * 10) / 28));
+        if (fp <= 0) return;
+        ctx.globalAlpha = fp;
+        ctx.fillStyle = 'rgba(15,23,42,0.80)';
+        ctx.strokeStyle = 'rgba(99,102,241,0.22)'; ctx.lineWidth = 1;
+        rrect(fx, fy, fw, 56 * sc, 10 * sc); ctx.fill(); ctx.stroke();
+        // tiny left accent strip
+        const ac2 = ctx.createLinearGradient(fx, fy, fx, fy + 56 * sc);
+        ac2.addColorStop(0, '#7c3aed'); ac2.addColorStop(1, '#06b6d4');
+        ctx.fillStyle = ac2; ctx.fillRect(fx, fy + 8 * sc, 2.5 * sc, 40 * sc);
+        txt(fld.label, fx + fw - 8 * sc, fy + 18 * sc, 9.5 * sc, '#475569', 'right');
+        const v = String(fld.value).length > 17 ? String(fld.value).slice(0, 15) + '…' : String(fld.value);
+        txt(v, fx + fw - 8 * sc, fy + 42 * sc, 12 * sc, '#cbd5e1', 'right', true);
+        ctx.globalAlpha = 1;
+      });
+      if (fieldsToShow > 0) curY += Math.ceil(Math.min(fieldsToShow, fields.length) / FCOLS) * 64 * sc + 8 * sc;
+    }
+
+    // ── Operations summary ──
+    if (f > 130 && subscriberOps.length > 0) {
+      const opsT = Math.min(1, easeOut((f - 130) / 35));
+      ctx.globalAlpha = opsT;
+      ctx.fillStyle = 'rgba(15,23,42,0.80)';
+      ctx.strokeStyle = 'rgba(99,102,241,0.22)'; ctx.lineWidth = 1;
+      rrect(PAD, curY, W - PAD * 2, 48 * sc, 10 * sc); ctx.fill(); ctx.stroke();
+      txt('العمليات', W - PAD - 8 * sc, curY + 18 * sc, 10 * sc, '#7c3aed', 'right', true);
+      txt(`${subscriberOps.length} عملية مسجلة`, PAD + 10 * sc, curY + 18 * sc, 10 * sc, '#475569', 'left');
+      const total = subscriberOps.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+      if (total > 0) txt(`الإجمالي: ${total.toLocaleString()} ر.س`, W - PAD - 8 * sc, curY + 38 * sc, 11 * sc, '#34d399', 'right', true);
+      ctx.globalAlpha = 1;
+    }
+
+    // soft bottom vignette
+    if (t > 0.4) {
+      const vG = ctx.createLinearGradient(0, H - 120 * sc, 0, H);
+      vG.addColorStop(0, 'rgba(6,13,26,0)');
+      vG.addColorStop(1, `rgba(6,13,26,${Math.min(0.7, (t - 0.4) * 1.2)})`);
+      ctx.fillStyle = vG; ctx.fillRect(0, H - 120 * sc, W, 120 * sc);
+    }
+
+    drawStatusBar();
+    drawHomeIndicator();
   }
 
-  // Phase 5: Final success (frames 390-419)
-  function phase5(f: number) {
-    const t = easeOut(f / 29);
-    drawDarkBg();
-    glow(W / 2, H / 2, 400 * sc, 'rgb(16,185,129)', 0.14 * t);
-    ctx.globalAlpha = t;
-    ctx.fillStyle = 'rgba(16,185,129,0.18)';
-    ctx.strokeStyle = 'rgba(16,185,129,0.5)'; ctx.lineWidth = 2 * sc;
-    ctx.beginPath(); ctx.arc(W / 2, H * 0.34, 58 * sc, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    txt('✓', W / 2, H * 0.34 + 22 * sc, 46 * sc, '#10b981', 'center', true);
-    txt('اكتملت عملية الاستعلام', W / 2, H * 0.54, 30 * sc, 'white', 'center', true);
-    txt(`المشترك: ${found.name}`, W / 2, H * 0.62, 20 * sc, '#94a3b8', 'center');
-    txt('نظام إدارة المشتركين', W / 2, H * 0.78, 16 * sc, '#334155', 'center');
-    ctx.globalAlpha = 1;
+  // Phase 3: Hold final state (frames 330–449)
+  function phaseHold(_f: number) {
+    phaseMain(269);
   }
 
   recorder.start(200);
 
   function animate() {
-    if (frame < 60) phase1(frame);
-    else if (frame < 120) phase2(frame - 60);
-    else if (frame < 165) phase3(frame - 120);
-    else if (frame < 390) phase4(frame - 165);
-    else phase5(frame - 390);
+    if (frame < 60) phaseIntro(frame);
+    else if (frame < 330) phaseMain(frame - 60);
+    else phaseHold(frame - 330);
 
     frame++;
     if (frame <= TOTAL) {
