@@ -107,12 +107,15 @@ interface SystemConfig {
     dynamicIsland: 'normal' | 'recording';
     batteryLevel: number;
     batteryCharging: boolean;
+    showBatteryPct: boolean;
     wifiEnabled: boolean;
     wifiStrength: number;
     signalEnabled: boolean;
     signalStrength: number;
     networkType: string;
     customTime: string;
+    statusBarBg: string;
+    showNotification: boolean;
   };
 }
 
@@ -429,12 +432,15 @@ const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
     dynamicIsland: 'normal',
     batteryLevel: 85,
     batteryCharging: false,
+    showBatteryPct: true,
     wifiEnabled: true,
     wifiStrength: 3,
     signalEnabled: true,
     signalStrength: 4,
     networkType: '4G',
     customTime: '',
+    statusBarBg: '#ffffff',
+    showNotification: true,
   },
 };
 
@@ -681,8 +687,8 @@ export default function Index() {
   const isAdvanced = activeTab === 'advanced';
   const iCfg = systemConfig.iPhoneConfig ?? {
     enabled: false, dynamicIsland: 'normal', batteryLevel: 85, batteryCharging: false,
-    wifiEnabled: true, wifiStrength: 3, signalEnabled: true, signalStrength: 4,
-    networkType: '4G', customTime: '',
+    showBatteryPct: true, wifiEnabled: true, wifiStrength: 3, signalEnabled: true,
+    signalStrength: 4, networkType: '4G', customTime: '', statusBarBg: '#ffffff', showNotification: true,
   };
 
   const systemDisplayDate = systemConfig.systemDate
@@ -993,37 +999,46 @@ export default function Index() {
 
   if (iCfg.enabled) {
     return (
-      <IPhoneFrame cfg={iCfg} onExit={() => updateConfig({ iPhoneConfig: { ...iCfg, enabled: false } })}>
-        <div dir="rtl" className="min-h-full bg-slate-50">
-          {/* Mobile nav bar at top */}
-          <div className="bg-gradient-to-b from-slate-900 to-slate-800 text-white px-3 py-3 flex items-center gap-2 flex-wrap">
-            {navItems.map(item => (
-              <button
-                key={item.tab}
-                onClick={() => setActiveTab(item.tab)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  activeTab === item.tab
-                    ? 'bg-emerald-500 text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                {item.icon}
-                <span className="hidden">{item.label}</span>
-              </button>
-            ))}
-          </div>
-          {/* Content */}
-          <div className="p-3">
-            {activeTab === 'dashboard' && <DashboardTab stats={liveStats} subscribers={subscribers} operations={operations} institutionalText={systemConfig.institutionalText} sectionName={sn.dashboard} />}
-            {activeTab === 'systemAdmin' && <SystemAdminTab systemConfig={systemConfig} onConfigChange={updateConfig} subscribersCount={subscribers.length} sectionName={sn.systemAdmin} operations={operations} onOperationsChange={setOperations} />}
-            {activeTab === 'admin' && <AdminPanel subscribers={subscribers} operations={operations} sectionName={sn.admin} systemConfig={systemConfig} />}
-            {activeTab === 'addOperations' && <AddOperationsTab operations={operations} onOperationsChange={setOperations} subscriberNames={subscribers.map(s => s.name)} sectionName={sn.addOperations} />}
-            {activeTab === 'addSubscriber' && <AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} sectionName={sn.addSubscriber} operations={operations} onOperationsChange={setOperations} />}
-            {activeTab === 'reports' && <ReportsTab subscribers={subscribers} operations={operations} />}
-            {activeTab === 'settings' && <SettingsTab isDark={isDark} onDarkToggle={() => setIsDark(!isDark)} subscribers={subscribers} operations={operations} systemConfig={systemConfig} onSubscribersChange={setSubscribers} onOperationsChange={setOperations} onConfigChange={updateConfig} />}
-          </div>
+      <>
+        <IPhoneStatusBarOverlay cfg={iCfg} onExit={() => updateConfig({ iPhoneConfig: { ...iCfg, enabled: false } })} />
+        <div style={{ paddingTop: 52 }} dir="rtl" className="min-h-screen bg-slate-50 flex">
+          {/* ── Sidebar (desktop) ── */}
+          <motion.aside
+            animate={{ width: sidebarCollapsed ? 72 : 256 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="bg-gradient-to-b from-slate-900 to-slate-800 text-white hidden lg:flex flex-col sticky h-screen shadow-2xl z-10 overflow-hidden flex-shrink-0"
+            style={{ top: 52 }}
+          >
+            <div className="p-4 border-b border-white/10 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg flex-shrink-0">
+                <Database size={20} className="text-white" />
+              </div>
+              {!sidebarCollapsed && <div><p className="font-black text-sm leading-tight whitespace-nowrap">مركز المشتركين</p><p className="text-xs text-slate-400 whitespace-nowrap">Moshtarikeen Hub</p></div>}
+            </div>
+            <nav className="flex-1 overflow-y-auto p-2 space-y-1 mt-2">
+              {navItems.map(item => (
+                <button key={item.tab} onClick={() => setActiveTab(item.tab)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === item.tab ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}>
+                  {item.icon}
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                </button>
+              ))}
+            </nav>
+          </motion.aside>
+          {/* ── Main content ── */}
+          <main className="flex-1 overflow-auto min-w-0">
+            <AnimatePresence mode="wait">
+              {activeTab === 'dashboard' && <motion.div key="db" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full"><DashboardTab stats={liveStats} subscribers={subscribers} operations={operations} institutionalText={systemConfig.institutionalText} sectionName={sn.dashboard} /></motion.div>}
+              {activeTab === 'systemAdmin' && <motion.div key="sa" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full"><SystemAdminTab systemConfig={systemConfig} onConfigChange={updateConfig} subscribersCount={subscribers.length} sectionName={sn.systemAdmin} operations={operations} onOperationsChange={setOperations} /></motion.div>}
+              {activeTab === 'admin' && <motion.div key="adm" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full"><AdminPanel subscribers={subscribers} operations={operations} sectionName={sn.admin} systemConfig={systemConfig} /></motion.div>}
+              {activeTab === 'addOperations' && <motion.div key="ao" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full"><AddOperationsTab operations={operations} onOperationsChange={setOperations} subscriberNames={subscribers.map(s => s.name)} sectionName={sn.addOperations} /></motion.div>}
+              {activeTab === 'addSubscriber' && <motion.div key="as" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full"><AddSubscriberTab subscribers={subscribers} onSubscribersChange={setSubscribers} sectionName={sn.addSubscriber} operations={operations} onOperationsChange={setOperations} /></motion.div>}
+              {activeTab === 'reports' && <motion.div key="rep" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full"><ReportsTab subscribers={subscribers} operations={operations} /></motion.div>}
+              {activeTab === 'settings' && <motion.div key="set" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full"><SettingsTab isDark={isDark} onDarkToggle={() => setIsDark(!isDark)} subscribers={subscribers} operations={operations} systemConfig={systemConfig} onSubscribersChange={setSubscribers} onOperationsChange={setOperations} onConfigChange={updateConfig} /></motion.div>}
+            </AnimatePresence>
+          </main>
         </div>
-      </IPhoneFrame>
+      </>
     );
   }
 
@@ -1276,82 +1291,15 @@ function DashboardTab({ stats, subscribers, operations, institutionalText, secti
 // ─────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────
-// iPhone 17 Pro Max Launcher Frame
+// iPhone Status Bar Overlay
 // ─────────────────────────────────────────────────────────────
-function IPhoneStatusBar({ cfg, time }: { cfg: SystemConfig['iPhoneConfig']; time: string }) {
-  const isRec = cfg.dynamicIsland === 'recording';
-  return (
-    <div className="relative flex items-center justify-between px-5 pt-3 pb-1 select-none" style={{ height: 52 }}>
-      {/* Dynamic Island */}
-      <div className="absolute left-1/2 top-2" style={{ transform: 'translateX(-50%)' }}>
-        <div style={{
-          width: isRec ? 126 : 118, height: 34,
-          background: '#000', borderRadius: 20,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          transition: 'width 0.3s ease',
-        }}>
-          {isRec && (
-            <span style={{
-              width: 9, height: 9, borderRadius: '50%',
-              background: '#ef4444',
-              boxShadow: '0 0 6px 2px rgba(239,68,68,0.55)',
-              animation: 'pulse 1.4s ease-in-out infinite',
-            }} />
-          )}
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#1a1a1a', border: '1.5px solid #333' }} />
-        </div>
-      </div>
-      {/* Time (right side for RTL) */}
-      <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', letterSpacing: -0.2 }}>{time}</span>
-      {/* Right indicators */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        {/* Signal */}
-        {cfg.signalEnabled && (
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5 }}>
-            {[1,2,3,4].map(i => (
-              <div key={i} style={{
-                width: 3, height: 4 + i * 2.5, borderRadius: 1,
-                background: i <= cfg.signalStrength ? '#0f172a' : 'rgba(15,23,42,0.22)',
-              }} />
-            ))}
-          </div>
-        )}
-        {/* Network type */}
-        {cfg.networkType && (
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a', letterSpacing: -0.5 }}>{cfg.networkType}</span>
-        )}
-        {/* WiFi */}
-        {cfg.wifiEnabled && (
-          <svg width="15" height="12" viewBox="0 0 15 12">
-            {[3,2,1].map((r, idx) => (
-              <path key={r} d={`M 7.5 11 m 0 0 a ${r * 2.8} ${r * 2.8} 0 0 1 -${r * 2.8} -${r * 2.8} a ${r * 2.8} ${r * 2.8} 0 0 1 ${r * 5.6} 0`}
-                fill="none" stroke={idx < cfg.wifiStrength ? '#0f172a' : 'rgba(15,23,42,0.22)'}
-                strokeWidth="1.4" strokeLinecap="round" />
-            ))}
-            <circle cx="7.5" cy="11" r="1.2" fill="#0f172a" />
-          </svg>
-        )}
-        {/* Battery */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <div style={{ position: 'relative', width: 22, height: 11, border: '1.2px solid rgba(15,23,42,0.38)', borderRadius: 3 }}>
-            <div style={{ position: 'absolute', right: -3, top: '50%', transform: 'translateY(-50%)', width: 2, height: 5, background: 'rgba(15,23,42,0.38)', borderRadius: '0 1px 1px 0' }} />
-            <div style={{
-              position: 'absolute', left: 1.5, top: 1.5,
-              width: `${Math.min(100, cfg.batteryLevel) * 0.17}px`, maxWidth: 18,
-              height: 8, borderRadius: 2,
-              background: cfg.batteryLevel < 20 ? '#ef4444' : cfg.batteryCharging ? '#22c55e' : '#0f172a',
-              transition: 'width 0.3s',
-            }} />
-          </div>
-          {cfg.batteryCharging && <span style={{ fontSize: 9, color: '#22c55e' }}>⚡</span>}
-        </div>
-      </div>
-    </div>
-  );
+function hexLuma(hex: string): number {
+  const c = hex.replace('#','');
+  const r = parseInt(c.slice(0,2),16), g = parseInt(c.slice(2,4),16), b = parseInt(c.slice(4,6),16);
+  return (0.299*r + 0.587*g + 0.114*b) / 255;
 }
 
-function IPhoneFrame({ children, cfg, onExit }: {
-  children: React.ReactNode;
+function IPhoneStatusBarOverlay({ cfg, onExit }: {
   cfg: SystemConfig['iPhoneConfig'];
   onExit: () => void;
 }) {
@@ -1360,6 +1308,7 @@ function IPhoneFrame({ children, cfg, onExit }: {
     const n = new Date();
     return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
   });
+  const [showExit, setShowExit] = React.useState(false);
 
   React.useEffect(() => {
     if (cfg.customTime) { setTime(cfg.customTime); return; }
@@ -1370,81 +1319,140 @@ function IPhoneFrame({ children, cfg, onExit }: {
     return () => clearInterval(tick);
   }, [cfg.customTime]);
 
+  const bg = cfg.statusBarBg || '#ffffff';
+  const dark = hexLuma(bg) < 0.5;
+  const fg = dark ? '#ffffff' : '#0f172a';
+  const fgSub = dark ? 'rgba(255,255,255,0.5)' : 'rgba(15,23,42,0.28)';
+  const isRec = cfg.dynamicIsland === 'recording';
+
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'fixed', top: 0, left: 0, right: 0, height: 52,
+      zIndex: 9999, display: 'flex', alignItems: 'center',
+      backgroundColor: bg, backdropFilter: 'blur(12px)',
+      borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'}`,
+      boxShadow: '0 1px 12px rgba(0,0,0,0.08)',
+      userSelect: 'none', paddingLeft: 14, paddingRight: 14,
     }}>
-      {/* Exit button */}
-      <button onClick={onExit} style={{
-        position: 'absolute', top: 16, right: 16, zIndex: 10001,
-        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-        color: 'white', borderRadius: 12, padding: '6px 14px',
-        fontSize: 12, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'center', gap: 6,
-      }}>
-        ✕ خروج من وضع الآيفون
-      </button>
 
-      {/* iPhone 17 Pro Max shell */}
-      <div style={{
-        position: 'relative', width: 393, height: 852,
-        borderRadius: 54,
-        background: 'linear-gradient(145deg, #3a3a3c 0%, #2c2c2e 30%, #1c1c1e 70%, #2a2a2c 100%)',
-        boxShadow: [
-          'inset 0 0 0 1px rgba(255,255,255,0.12)',
-          'inset 0 1px 0 rgba(255,255,255,0.08)',
-          '0 0 0 1px rgba(0,0,0,0.8)',
-          '0 25px 80px rgba(0,0,0,0.7)',
-          '0 0 0 11px #1c1c1e',
-          '0 0 0 12px rgba(255,255,255,0.04)',
-        ].join(', '),
-        flexShrink: 0,
-        transform: 'scale(min(1, calc((100vh - 40px) / 852)))',
-        transformOrigin: 'center center',
-      }}>
-        {/* Side buttons */}
-        <div style={{ position: 'absolute', left: -13, top: 108, width: 5, height: 32, background: 'linear-gradient(to right, #2a2a2c, #3a3a3c)', borderRadius: '3px 0 0 3px', boxShadow: '-1px 0 2px rgba(0,0,0,0.5)' }} />
-        <div style={{ position: 'absolute', left: -13, top: 152, width: 5, height: 60, background: 'linear-gradient(to right, #2a2a2c, #3a3a3c)', borderRadius: '3px 0 0 3px', boxShadow: '-1px 0 2px rgba(0,0,0,0.5)' }} />
-        <div style={{ position: 'absolute', left: -13, top: 224, width: 5, height: 60, background: 'linear-gradient(to right, #2a2a2c, #3a3a3c)', borderRadius: '3px 0 0 3px', boxShadow: '-1px 0 2px rgba(0,0,0,0.5)' }} />
-        <div style={{ position: 'absolute', right: -13, top: 164, width: 5, height: 90, background: 'linear-gradient(to left, #2a2a2c, #3a3a3c)', borderRadius: '0 3px 3px 0', boxShadow: '1px 0 2px rgba(0,0,0,0.5)' }} />
+      {/* ── LEFT: Time + Bell ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 80 }}>
+        <span style={{ fontSize: 16, fontWeight: 700, color: fg, letterSpacing: -0.3, fontVariantNumeric: 'tabular-nums' }}>
+          {time}
+        </span>
+        {cfg.showNotification && (
+          <svg width="14" height="15" viewBox="0 0 14 15" fill="none">
+            <path d="M7 1a4.5 4.5 0 00-4.5 4.5v2.5l-1 1.5h11l-1-1.5V5.5A4.5 4.5 0 007 1z"
+              fill={fg} opacity="0.85" />
+            <path d="M5.5 11.5a1.5 1.5 0 003 0" stroke={fg} strokeWidth="1.2" fill="none" />
+          </svg>
+        )}
+      </div>
 
-        {/* Screen area */}
-        <div style={{
-          position: 'absolute', inset: 11,
-          borderRadius: 44, overflow: 'hidden',
-          background: 'white', display: 'flex', flexDirection: 'column',
-        }}>
-          {/* Status bar */}
-          <div style={{ flexShrink: 0, background: 'rgba(248,250,252,0.97)' }}>
-            <IPhoneStatusBar cfg={cfg} time={time} />
-          </div>
-
-          {/* Content area */}
-          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
-            className="iphone-content-scroll">
-            {children}
-          </div>
-
-          {/* Home indicator */}
-          <div style={{
-            flexShrink: 0, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'white',
+      {/* ── CENTER: Dynamic Island ── */}
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+        <div
+          onClick={() => setShowExit(v => !v)}
+          style={{
+            width: isRec ? 130 : 120, height: 34, background: '#000',
+            borderRadius: 20, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: 7, cursor: 'pointer',
+            transition: 'width 0.3s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
           }}>
-            <div style={{ width: 130, height: 5, borderRadius: 3, background: 'rgba(0,0,0,0.2)' }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#111', border: '1.5px solid #2a2a2a' }} />
+          {isRec && (
+            <span style={{
+              width: 9, height: 9, borderRadius: '50%', background: '#ef4444',
+              boxShadow: '0 0 7px 2px rgba(239,68,68,0.6)',
+              animation: 'iphonePulse 1.4s ease-in-out infinite',
+            }} />
+          )}
+        </div>
+        {/* Exit popup on island click */}
+        {showExit && (
+          <div style={{
+            position: 'absolute', top: 48, left: '50%', transform: 'translateX(-50%)',
+            background: '#1c1c1e', borderRadius: 14, padding: '10px 18px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.45)', zIndex: 10000,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>إيقاف وضع الآيفون؟</span>
+            <button onClick={onExit} style={{
+              background: '#ef4444', color: '#fff', border: 'none',
+              borderRadius: 9, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}>إيقاف</button>
+            <button onClick={() => setShowExit(false)} style={{
+              background: 'rgba(255,255,255,0.12)', color: '#fff', border: 'none',
+              borderRadius: 9, padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+            }}>لا</button>
           </div>
+        )}
+      </div>
+
+      {/* ── RIGHT: Signal + WiFi + Network + Battery ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 80, justifyContent: 'flex-end' }}>
+
+        {/* Signal bars */}
+        {cfg.signalEnabled && (
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5 }}>
+            {[1,2,3,4].map(i => (
+              <div key={i} style={{
+                width: 3.5, height: 4 + i * 3, borderRadius: 1.5,
+                background: i <= cfg.signalStrength ? fg : fgSub,
+              }} />
+            ))}
+          </div>
+        )}
+
+        {/* WiFi arc */}
+        {cfg.wifiEnabled && (
+          <svg width="16" height="12" viewBox="0 0 16 12" style={{ overflow: 'visible' }}>
+            {[3,2,1].map((r, idx) => {
+              const show = idx < cfg.wifiStrength;
+              const arcR = r * 3;
+              const sw = 1.5;
+              const sa = 0.55;
+              return (
+                <path key={r}
+                  d={`M ${8 - arcR * Math.cos(sa)} ${11 - arcR * Math.sin(sa)} A ${arcR} ${arcR} 0 0 1 ${8 + arcR * Math.cos(sa)} ${11 - arcR * Math.sin(sa)}`}
+                  fill="none" stroke={show ? fg : fgSub} strokeWidth={sw} strokeLinecap="round" />
+              );
+            })}
+            <circle cx="8" cy="11" r="1.3" fill={fg} />
+          </svg>
+        )}
+
+        {/* Network type */}
+        {cfg.networkType && (
+          <span style={{ fontSize: 11, fontWeight: 800, color: fg, letterSpacing: -0.5 }}>{cfg.networkType}</span>
+        )}
+
+        {/* Battery */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {cfg.showBatteryPct && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: fg, letterSpacing: -0.5 }}>{cfg.batteryLevel}%</span>
+          )}
+          <div style={{ position: 'relative', width: 24, height: 12, border: `1.5px solid ${fg}`, borderRadius: 3.5, opacity: 0.85 }}>
+            <div style={{ position: 'absolute', right: -4, top: '50%', transform: 'translateY(-50%)', width: 3, height: 6, background: fg, borderRadius: '0 2px 2px 0', opacity: 0.6 }} />
+            <div style={{
+              position: 'absolute', left: 1.5, top: 1.5, height: 7, borderRadius: 2,
+              width: `${Math.max(1, Math.min(17, cfg.batteryLevel * 0.17))}px`,
+              background: cfg.batteryLevel <= 20 ? '#ef4444' : cfg.batteryCharging ? '#22c55e' : fg,
+              transition: 'width 0.4s, background 0.3s',
+            }} />
+          </div>
+          {cfg.batteryCharging && <span style={{ fontSize: 11, color: '#22c55e', lineHeight: 1 }}>⚡</span>}
         </div>
       </div>
 
       <style>{`
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        .iphone-content-scroll::-webkit-scrollbar { display: none; }
-        .iphone-content-scroll { scrollbar-width: none; }
+        @keyframes iphonePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.45;transform:scale(0.88)} }
       `}</style>
     </div>
   );
 }
+
 
 // System Admin Tab — لوحة إدارة النظام
 // ─────────────────────────────────────────────────────────────
@@ -1782,204 +1790,194 @@ function IPhoneLauncherSettings({ systemConfig, onConfigChange }: {
 }) {
   const ic = systemConfig.iPhoneConfig ?? {
     enabled: false, dynamicIsland: 'normal', batteryLevel: 85, batteryCharging: false,
-    wifiEnabled: true, wifiStrength: 3, signalEnabled: true, signalStrength: 4,
-    networkType: '4G', customTime: '',
+    showBatteryPct: true, wifiEnabled: true, wifiStrength: 3, signalEnabled: true,
+    signalStrength: 4, networkType: '4G', customTime: '', statusBarBg: '#ffffff', showNotification: true,
   };
 
-  const update = (patch: Partial<typeof ic>) => {
+  const update = (patch: Partial<typeof ic>) =>
     onConfigChange({ iPhoneConfig: { ...ic, ...patch } });
-  };
 
   const ToggleRow = ({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) => (
-    <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
+    <div className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0">
       <div>
         <p className="text-sm font-bold text-slate-700">{label}</p>
         {desc && <p className="text-xs text-slate-400 mt-0.5">{desc}</p>}
       </div>
-      <button
-        onClick={() => onChange(!value)}
-        className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-0.5 ${
-          value ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'
-        }`}
-      >
-        <span className="w-5 h-5 rounded-full bg-white shadow-md transition-all block" />
+      <button onClick={() => onChange(!value)}
+        className={`w-11 h-6 rounded-full transition-all duration-300 flex items-center px-0.5 ${value ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}>
+        <span className="w-5 h-5 rounded-full bg-white shadow block" />
       </button>
     </div>
   );
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  const dark = hexLuma(ic.statusBarBg || '#ffffff') < 0.5;
 
-      {/* ── Col 1: Master Switch + Dynamic Island ── */}
-      <div className="space-y-4">
-        {/* Enable toggle */}
-        <div className={`rounded-2xl p-5 ${
-          ic.enabled
-            ? 'bg-gradient-to-br from-slate-800 to-slate-900 ring-1 ring-slate-700'
-            : 'bg-slate-50 ring-1 ring-slate-200'
-        }`}>
+  return (
+    <div className="space-y-5">
+
+      {/* ── Row 1: Master Enable + Preview ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Enable */}
+        <div className={`rounded-2xl p-5 ${ic.enabled ? 'bg-gradient-to-br from-slate-800 to-slate-900 ring-1 ring-slate-700' : 'bg-slate-50 ring-1 ring-slate-200'}`}>
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className={`text-sm font-black ${ic.enabled ? 'text-white' : 'text-slate-700'}`}>وضع الآيفون</p>
+              <p className={`text-sm font-black ${ic.enabled ? 'text-white' : 'text-slate-700'}`}>📱 تفعيل وضع الآيفون</p>
               <p className={`text-xs mt-0.5 ${ic.enabled ? 'text-slate-400' : 'text-slate-400'}`}>
-                {ic.enabled ? '🟢 مفعّل — النظام يعمل داخل إطار آيفون' : 'النظام يعمل بشكل اعتيادي'}
+                {ic.enabled ? '🟢 شريط الحالة يظهر في الأعلى' : 'الوضع الاعتيادي للنظام'}
               </p>
             </div>
-            <button
-              onClick={() => update({ enabled: !ic.enabled })}
-              className={`w-14 h-7 rounded-full transition-all duration-300 flex items-center px-0.5 ${
-                ic.enabled ? 'bg-emerald-500 justify-end' : 'bg-slate-300 justify-start'
-              }`}
-            >
+            <button onClick={() => update({ enabled: !ic.enabled })}
+              className={`w-14 h-7 rounded-full transition-all duration-300 flex items-center px-0.5 ${ic.enabled ? 'bg-emerald-500 justify-end' : 'bg-slate-300 justify-start'}`}>
               <span className="w-6 h-6 rounded-full bg-white shadow-md block transition-all" />
             </button>
           </div>
           {ic.enabled && (
-            <button
-              onClick={() => update({ enabled: false })}
-              className="w-full py-2 text-xs font-bold text-red-400 bg-red-500/10 rounded-xl hover:bg-red-500/20 transition-colors"
-            >
-              ✕ إيقاف وضع الآيفون الآن
+            <button onClick={() => update({ enabled: false })}
+              className="w-full py-1.5 text-xs font-bold text-red-400 bg-red-500/10 rounded-xl hover:bg-red-500/20 transition-colors">
+              ✕ إيقاف الوضع الآن
             </button>
           )}
         </div>
 
+        {/* Live preview */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4">
+          <p className="text-xs font-bold text-slate-500 mb-3">معاينة شريط الحالة</p>
+          <div style={{
+            background: ic.statusBarBg || '#fff',
+            borderRadius: 12, padding: '0 12px',
+            height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#0f172a' }}>
+              {ic.customTime || '09:41'}
+              {ic.showNotification && ' 🔔'}
+            </span>
+            <div style={{ width: 72, height: 22, background: '#000', borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#111' }} />
+              {ic.dynamicIsland === 'recording' && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444' }} />}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5 }}>
+                {[1,2,3,4].map(i => <div key={i} style={{ width: 3, height: 3+i*2.5, borderRadius: 1, background: i <= ic.signalStrength ? (dark ? '#fff' : '#0f172a') : 'rgba(100,100,100,0.3)' }} />)}
+              </div>
+              {ic.networkType && <span style={{ fontSize: 10, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>{ic.networkType}</span>}
+              {ic.showBatteryPct && <span style={{ fontSize: 10, fontWeight: 700, color: dark ? '#fff' : '#0f172a' }}>{ic.batteryLevel}%</span>}
+              <div style={{ width: 18, height: 9, border: `1.5px solid ${dark ? '#fff' : '#0f172a'}`, borderRadius: 2.5, position: 'relative', opacity: 0.8 }}>
+                <div style={{ position: 'absolute', left: 1, top: 1, height: 5, borderRadius: 1, background: ic.batteryCharging ? '#22c55e' : (dark ? '#fff' : '#0f172a'), width: `${Math.max(1, ic.batteryLevel * 0.13)}px` }} />
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 mt-2 text-center">انقر على الجزيرة السوداء في الشريط لإيقاف الوضع</p>
+        </div>
+      </div>
+
+      {/* ── Row 2: Status Bar Color + Dynamic Island ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        {/* Background color */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
+          <p className="text-sm font-black text-slate-700">🎨 لون خلفية الشريط</p>
+          <div className="flex items-center gap-3">
+            <input type="color" value={ic.statusBarBg || '#ffffff'}
+              onChange={e => update({ statusBarBg: e.target.value })}
+              className="w-10 h-10 rounded-xl border-0 cursor-pointer bg-transparent" />
+            <input type="text" value={ic.statusBarBg || '#ffffff'}
+              onChange={e => update({ statusBarBg: e.target.value })}
+              placeholder="#ffffff" maxLength={7}
+              className="flex-1 h-9 border border-slate-200 rounded-lg px-3 text-sm font-mono" />
+          </div>
+          {/* Quick colors */}
+          <div className="flex flex-wrap gap-2">
+            {['#ffffff','#0f172a','#1e3a5f','#064e3b','#1a1a2e','#f8fafc','#7c3aed','#dc2626','#d97706'].map(c => (
+              <button key={c} onClick={() => update({ statusBarBg: c })}
+                style={{ background: c, width: 24, height: 24, borderRadius: 6, border: ic.statusBarBg === c ? '2px solid #10b981' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer' }} />
+            ))}
+          </div>
+        </div>
+
         {/* Dynamic Island */}
         <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
-          <p className="text-sm font-black text-slate-700 flex items-center gap-2">💊 Dynamic Island</p>
+          <p className="text-sm font-black text-slate-700">💊 Dynamic Island</p>
           <div className="grid grid-cols-2 gap-2">
             {(['normal', 'recording'] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => update({ dynamicIsland: mode })}
-                className={`py-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1.5 ${
-                  ic.dynamicIsland === mode
-                    ? mode === 'recording' ? 'bg-red-500 text-white shadow-lg' : 'bg-slate-800 text-white shadow-lg'
-                    : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <span className={`rounded-full block ${
-                  mode === 'recording' ? 'bg-red-400 w-3 h-3 animate-pulse' : 'bg-slate-400 w-2 h-2'
-                }`} />
-                {mode === 'normal' ? 'عادي' : 'تسجيل شاشة'}
+              <button key={mode} onClick={() => update({ dynamicIsland: mode })}
+                className={`py-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 ${ic.dynamicIsland === mode ? (mode === 'recording' ? 'bg-red-500 text-white' : 'bg-slate-800 text-white') : 'bg-white ring-1 ring-slate-200 text-slate-600'}`}>
+                <span className={`rounded-full block ${mode === 'recording' ? 'bg-red-400 w-3 h-3 animate-pulse' : 'bg-slate-500 w-2 h-2'}`} />
+                {mode === 'normal' ? 'عادي' : '🔴 تسجيل'}
               </button>
             ))}
           </div>
+          <ToggleRow label="أيقونة إشعارات 🔔" value={ic.showNotification} onChange={v => update({ showNotification: v })} />
         </div>
 
-        {/* Custom Time */}
-        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-2">
-          <p className="text-sm font-black text-slate-700">🕐 وقت مخصص</p>
-          <Input
-            value={ic.customTime}
-            onChange={e => update({ customTime: e.target.value })}
-            placeholder="مثال: 09:41 (فارغ = الوقت الحقيقي)"
-            className="h-9 border-slate-200 text-sm"
-          />
-          <p className="text-xs text-slate-400">09:41 هو الوقت الأيقوني لآبل في الإعلانات</p>
+        {/* Time */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
+          <p className="text-sm font-black text-slate-700">🕐 الوقت</p>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 block">وقت مخصص</label>
+            <Input value={ic.customTime} onChange={e => update({ customTime: e.target.value })}
+              placeholder="09:41" className="h-9 border-slate-200 text-sm font-mono" />
+            <p className="text-xs text-slate-400">فارغ = الوقت الحقيقي تلقائياً</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {['09:41','12:00','16:00','20:00','00:00'].map(t => (
+              <button key={t} onClick={() => update({ customTime: t })}
+                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${ic.customTime === t ? 'bg-slate-700 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'}`}>{t}</button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* ── Col 2: Battery ── */}
-      <div className="space-y-4">
-        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-4">
-          <p className="text-sm font-black text-slate-700 flex items-center gap-2">🔋 البطارية</p>
+      {/* ── Row 3: Battery + Signal + WiFi ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-          {/* Level slider */}
+        {/* Battery */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
+          <p className="text-sm font-black text-slate-700">🔋 البطارية</p>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-500">مستوى الشحن</label>
-              <span className="text-sm font-black text-slate-700">{ic.batteryLevel}٪</span>
+              <span className="text-sm font-black text-slate-700">{ic.batteryLevel}%</span>
             </div>
-            <input
-              type="range" min={1} max={100} value={ic.batteryLevel}
+            <input type="range" min={1} max={100} value={ic.batteryLevel}
               onChange={e => update({ batteryLevel: Number(e.target.value) })}
-              className="w-full accent-emerald-500"
-            />
-            <div className="flex justify-between text-xs text-slate-400">
-              <span>1٪</span><span>50٪</span><span>100٪</span>
-            </div>
-          </div>
-
-          {/* Quick presets */}
-          <div className="grid grid-cols-4 gap-1.5">
-            {[20, 50, 75, 100].map(v => (
-              <button key={v}
-                onClick={() => update({ batteryLevel: v })}
-                className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  ic.batteryLevel === v ? 'bg-emerald-500 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}>{v}٪</button>
-            ))}
-          </div>
-
-          {/* Charging toggle */}
-          <ToggleRow
-            label="وضع الشحن 🔌"
-            desc="يظهر البرق الأخضر ويتحول لون البطارية"
-            value={ic.batteryCharging}
-            onChange={v => update({ batteryCharging: v })}
-          />
-
-          {/* Visual preview */}
-          <div className="flex items-center justify-center py-3">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ position: 'relative', width: 44, height: 22, border: '2px solid rgba(15,23,42,0.38)', borderRadius: 5 }}>
-                <div style={{ position: 'absolute', right: -5, top: '50%', transform: 'translateY(-50%)', width: 4, height: 10, background: 'rgba(15,23,42,0.38)', borderRadius: '0 2px 2px 0' }} />
-                <div style={{
-                  position: 'absolute', left: 3, top: 3,
-                  width: Math.max(2, ic.batteryLevel * 0.32), height: 12, borderRadius: 3,
-                  background: ic.batteryLevel < 20 ? '#ef4444' : ic.batteryCharging ? '#22c55e' : '#0f172a',
-                  transition: 'all 0.3s',
-                }} />
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 700, color: ic.batteryLevel < 20 ? '#ef4444' : '#0f172a' }}>{ic.batteryLevel}٪</span>
-              {ic.batteryCharging && <span style={{ fontSize: 16 }}>⚡</span>}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Col 3: Signal + WiFi + Network ── */}
-      <div className="space-y-4">
-
-        {/* Signal */}
-        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
-          <p className="text-sm font-black text-slate-700 flex items-center gap-2">📶 الشبكة الخلوية</p>
-          <ToggleRow label="إظهار أعمدة الإشارة" value={ic.signalEnabled} onChange={v => update({ signalEnabled: v })} />
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-500">قوة الإشارة</label>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2 }}>
-                {[1,2,3,4].map(i => (
-                  <div key={i} style={{
-                    width: 5, height: 5 + i * 3.5, borderRadius: 1.5,
-                    background: i <= ic.signalStrength ? '#0f172a' : 'rgba(15,23,42,0.18)',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                  }} onClick={() => update({ signalStrength: i })} />
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {[0,1,2,3,4].map(v => (
-                <button key={v}
-                  onClick={() => update({ signalStrength: v })}
-                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    ic.signalStrength === v ? 'bg-slate-700 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}>{v === 0 ? 'لا' : v}</button>
+              className="w-full accent-emerald-500" />
+            <div className="grid grid-cols-4 gap-1">
+              {[20,50,75,100].map(v => (
+                <button key={v} onClick={() => update({ batteryLevel: v })}
+                  className={`py-1 text-xs font-bold rounded-lg ${ic.batteryLevel === v ? 'bg-emerald-500 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600'}`}>{v}%</button>
               ))}
             </div>
           </div>
-          {/* Network type */}
-          <div className="space-y-2">
+          <ToggleRow label="وضع الشحن ⚡" value={ic.batteryCharging} onChange={v => update({ batteryCharging: v })} />
+          <ToggleRow label="إظهار الرقم" desc="مثال: 85%" value={ic.showBatteryPct} onChange={v => update({ showBatteryPct: v })} />
+        </div>
+
+        {/* Signal */}
+        <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
+          <p className="text-sm font-black text-slate-700">📶 الإشارة</p>
+          <ToggleRow label="إظهار أعمدة الإشارة" value={ic.signalEnabled} onChange={v => update({ signalEnabled: v })} />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500">قوة الإشارة</label>
+              <div className="flex items-flex-end gap-1.5">
+                {[1,2,3,4].map(i => <div key={i} onClick={() => update({ signalStrength: i })} style={{ width:5, height:4+i*3.5, borderRadius:1.5, background: i<=ic.signalStrength?'#0f172a':'rgba(15,23,42,0.18)', cursor:'pointer' }} />)}
+              </div>
+            </div>
+            <div className="grid grid-cols-5 gap-1">
+              {[0,1,2,3,4].map(v => (
+                <button key={v} onClick={() => update({ signalStrength: v })}
+                  className={`py-1.5 text-xs font-bold rounded-lg ${ic.signalStrength===v?'bg-slate-700 text-white':'bg-white ring-1 ring-slate-200 text-slate-600'}`}>{v===0?'✗':v}</button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 block">نوع الشبكة</label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {['5G','4G','LTE','3G','','2G'].map(t => (
-                <button key={t}
-                  onClick={() => update({ networkType: t })}
-                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    ic.networkType === t ? 'bg-blue-600 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}>{t || 'بدون'}</button>
+            <div className="grid grid-cols-3 gap-1">
+              {['5G','4G','LTE','3G','2G',''].map(t => (
+                <button key={t} onClick={() => update({ networkType: t })}
+                  className={`py-1.5 text-xs font-bold rounded-lg ${ic.networkType===t?'bg-blue-600 text-white':'bg-white ring-1 ring-slate-200 text-slate-600'}`}>{t||'بدون'}</button>
               ))}
             </div>
           </div>
@@ -1987,17 +1985,14 @@ function IPhoneLauncherSettings({ systemConfig, onConfigChange }: {
 
         {/* WiFi */}
         <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4 space-y-3">
-          <p className="text-sm font-black text-slate-700 flex items-center gap-2">📡 الواي فاي</p>
+          <p className="text-sm font-black text-slate-700">📡 الواي فاي</p>
           <ToggleRow label="إظهار أيقونة الواي فاي" value={ic.wifiEnabled} onChange={v => update({ wifiEnabled: v })} />
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 block">قوة الإشارة</label>
             <div className="grid grid-cols-4 gap-1.5">
               {[0,1,2,3].map(v => (
-                <button key={v}
-                  onClick={() => update({ wifiStrength: v })}
-                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    ic.wifiStrength === v ? 'bg-cyan-600 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}>{v === 0 ? 'بدون' : v}</button>
+                <button key={v} onClick={() => update({ wifiStrength: v })}
+                  className={`py-1.5 text-xs font-bold rounded-lg ${ic.wifiStrength===v?'bg-cyan-600 text-white':'bg-white ring-1 ring-slate-200 text-slate-600'}`}>{v===0?'✗':v}</button>
               ))}
             </div>
           </div>
@@ -2008,7 +2003,8 @@ function IPhoneLauncherSettings({ systemConfig, onConfigChange }: {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Admin Panel — نظام الإستعلام عن الأرباح
+// Admin Panel
+ — نظام الإستعلام عن الأرباح
 // ─────────────────────────────────────────────────────────────
 
 const OPS_PER_PAGE = 8;
